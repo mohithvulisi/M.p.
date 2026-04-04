@@ -3,8 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#c96bff">
 <title>RoomSync</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.4.7/peerjs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,500;0,700;1,300&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
@@ -208,6 +211,66 @@ body.light .how-to-box { background: rgba(0,0,0,0.05); border: 1px solid var(--b
 }
 .code-pill.copied .copy-tooltip { opacity: 1; }
 
+/* ── QR CODE MODAL ── */
+.qr-overlay {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,0.8); backdrop-filter: blur(10px);
+  display: none; align-items: center; justify-content: center;
+  animation: fadeIn 0.3s ease;
+}
+.qr-overlay.active { display: flex; }
+.qr-modal {
+  background: white; padding: 24px; border-radius: 20px;
+  text-align: center; color: #000; max-width: 300px; width: 90%;
+}
+.qr-modal h3 { margin-bottom: 12px; font-size: 18px; }
+.qr-modal p { font-size: 12px; margin-bottom: 20px; color: #666; }
+#qr-container { display: flex; justify-content: center; margin-bottom: 20px; }
+.btn-close-qr { width: 100%; padding: 12px; border: none; border-radius: 12px; background: #eee; cursor: pointer; font-weight: 700; }
+
+/* ── SYNC PULSE ── */
+.sync-pulse {
+  width: 12px; height: 12px; border-radius: 50%;
+  background: var(--accent); position: relative;
+  transition: transform 0.1s ease;
+}
+.sync-pulse::after {
+  content: ''; position: absolute; inset: -4px;
+  border: 2px solid var(--accent); border-radius: 50%;
+  opacity: 0; animation: pulseRing 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+  animation-delay: var(--pulse-delay, 0s);
+}
+@keyframes pulseRing {
+  0% { transform: scale(0.5); opacity: 0.8; }
+  80%, 100% { transform: scale(2.5); opacity: 0; }
+}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* ── HOW TO CONNECT MODAL ── */
+.how-overlay {
+  position: fixed; inset: 0; z-index: 250;
+  background: rgba(0,0,0,0.85); backdrop-filter: blur(15px);
+  display: none; align-items: center; justify-content: center;
+  animation: fadeIn 0.3s ease; padding: 20px;
+}
+.how-overlay.active { display: flex; }
+.how-card {
+  background: var(--card-bg); border: 1px solid var(--border);
+  border-radius: 28px; padding: 32px; max-width: 440px; width: 100%;
+  box-shadow: var(--shadow);
+}
+.how-title { font-size: 24px; font-weight: 700; margin-bottom: 24px; text-align: center; }
+.how-list { display: flex; flex-direction: column; gap: 20px; margin-bottom: 32px; }
+.how-item { display: flex; align-items: flex-start; gap: 16px; }
+.how-idx {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: #fff; font-size: 13px; font-weight: 800;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.how-text h4 { font-size: 15px; margin-bottom: 4px; color: var(--text); }
+.how-text p { font-size: 13px; color: var(--muted); line-height: 1.5; }
+
 /* Album art */
 .art-wrap { position: relative; margin-bottom: 20px; }
 .art-img { width: 100%; aspect-ratio: 1; border-radius: 20px; object-fit: cover; display: none; box-shadow: 0 28px 64px rgba(0,0,0,0.7); }
@@ -319,6 +382,45 @@ body.light input[type=range] { background: rgba(0,0,0,0.15); }
 <button class="theme-toggle" id="theme-btn" onclick="toggleTheme()" title="Toggle theme">🌙</button>
 <div id="iframe-notice">⚠ Tab audio capture requires opening this file directly in Chrome or Edge.</div>
 
+<div class="qr-overlay" id="qr-overlay" onclick="closeQR(event)">
+  <div class="qr-modal" onclick="event.stopPropagation()">
+    <h3>Join Room</h3>
+    <p>Scan this QR code with your other device's camera to join instantly.</p>
+    <div id="qr-container"></div>
+    <button class="btn-close-qr" onclick="closeQR(event)">Close</button>
+  </div>
+</div>
+
+<div class="how-overlay" id="how-overlay" onclick="closeHow(event)">
+  <div class="how-card" onclick="event.stopPropagation()">
+    <h3 class="how-title">How to Connect</h3>
+    <div class="how-list">
+      <div class="how-item">
+        <div class="how-idx">1</div>
+        <div class="how-text">
+          <h4>Connect to same WiFi</h4>
+          <p>Ensure your computer and other devices are on the same WiFi or hotspot.</p>
+        </div>
+      </div>
+      <div class="how-item">
+        <div class="how-idx">2</div>
+        <div class="how-text">
+          <h4>Scan or Enter Code</h4>
+          <p>Scan the Host's QR code with your camera or enter the 6-digit room code.</p>
+        </div>
+      </div>
+      <div class="how-item">
+        <div class="how-idx">3</div>
+        <div class="how-text">
+          <h4>Watch the Pulse</h4>
+          <p>Look for the pulsing dot. If they flash at the same time, you're perfectly synced!</p>
+        </div>
+      </div>
+    </div>
+    <button class="btn-fill ghost" style="width:100%" onclick="closeHow(event)">Got it</button>
+  </div>
+</div>
+
 <!-- ══════════════════════════ LANDING -->
 <div class="screen active" id="s-land">
   <div class="land">
@@ -328,6 +430,7 @@ body.light input[type=range] { background: rgba(0,0,0,0.15); }
     <div class="land-btns">
       <button class="btn-fill amber" onclick="goHost()">Host a Room</button>
       <button class="btn-fill ghost" onclick="showScreen('s-join')">Join a Room</button>
+      <button class="btn-back" style="border:none;background:none;font-size:11px;letter-spacing:1px;opacity:0.6;" onclick="showHow()">HOW TO CONNECT?</button>
     </div>
   </div>
 </div>
@@ -431,6 +534,7 @@ body.light input[type=range] { background: rgba(0,0,0,0.15); }
       onkeydown="if(event.key==='Enter')doJoin()">
     <button class="btn-fill amber" style="width:100%;margin-bottom:10px" onclick="doJoin()">Join →</button>
     <button class="btn-back" onclick="showScreen('s-land')">← Back</button>
+    <button class="btn-back" style="border:none;background:none;font-size:10px;margin-top:12px;opacity:0.6;" onclick="showHow()">NEED HELP CONNECTING?</button>
     <div class="status-line" id="join-status"></div>
   </div>
 </div>
@@ -440,13 +544,22 @@ body.light input[type=range] { background: rgba(0,0,0,0.15); }
   <div class="player-wrap">
     <div class="top-bar">
       <div class="top-wordmark">ROOMSYNC</div>
-      <div class="code-pill" id="h-code-pill" onclick="copyRoomCode()">
-        <span class="copy-tooltip">COPIED!</span><span id="h-code-text">——</span>
+      <div style="display:flex; gap: 8px;">
+        <div class="code-pill" onclick="showHow()" title="How to connect">
+          <span style="font-size:14px">❓</span>
+        </div>
+        <div class="code-pill" onclick="showQR()">
+          <span style="font-size:14px">📷</span>
+        </div>
+        <div class="code-pill" id="h-code-pill" onclick="copyRoomCode()">
+          <span class="copy-tooltip">COPIED!</span><span id="h-code-text">——</span>
+        </div>
       </div>
     </div>
 
     <div class="source-chip" id="h-source-chip">
       <div class="dot-live"></div><span id="h-source-label">STREAMING</span>
+      <div class="sync-pulse" style="margin-left: 10px; opacity: 0.6;"></div>
     </div>
 
     <!-- Art -->
@@ -510,7 +623,10 @@ body.light input[type=range] { background: rgba(0,0,0,0.15); }
   <div class="player-wrap">
     <div class="top-bar">
       <div class="top-wordmark">ROOMSYNC</div>
-      <div class="code-pill" id="g-code-pill" style="color:var(--green);border-color:rgba(30,215,96,0.3);background:rgba(30,215,96,0.07)">——</div>
+      <div style="display:flex; gap: 8px; align-items: center;">
+        <div class="sync-pulse" id="g-sync-pulse" style="opacity: 0.8;"></div>
+        <div class="code-pill" id="g-code-pill" style="color:var(--green);border-color:rgba(30,215,96,0.3);background:rgba(30,215,96,0.07)">——</div>
+      </div>
     </div>
 
     <div class="guest-live"><div class="dot-live"></div>LIVE FROM HOST</div>
@@ -660,13 +776,77 @@ let hostMode = 'stream'; // 'stream' | 'local'
 //  BOOT
 // ═══════════════════════════════════════
 window.addEventListener('load', async () => {
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(console.error);
+  }
   if (window.self !== window.top) document.getElementById('iframe-notice').style.display = 'block';
   await CryptoUtil.init();
   applyTheme();
+  // Check for room in URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const r = urlParams.get('room');
+  if (r) {
+    document.getElementById('join-code').value = r.toUpperCase();
+    showScreen('s-join');
+  }
+  // Start the pulse sync loop
+  startPulseSync();
   // Hide progress/controls on host screen initially
   document.getElementById('h-prog-wrap').style.display = 'none';
   document.getElementById('h-controls').style.display = 'none';
 });
+
+// ═══════════════════════════════════════
+//  QR CODE HELPERS
+// ═══════════════════════════════════════
+let qrcode = null;
+function showQR() {
+  const container = document.getElementById('qr-container');
+  container.innerHTML = '';
+  const joinUrl = `${window.location.origin}${window.location.pathname}?room=${roomCode}`;
+  
+  qrcode = new QRCode(container, {
+    text: joinUrl,
+    width: 200,
+    height: 200,
+    colorDark : "#000000",
+    colorLight : "#ffffff",
+    correctLevel : QRCode.CorrectLevel.H
+  });
+  
+  document.getElementById('qr-overlay').classList.add('active');
+}
+
+function closeQR(e) {
+  document.getElementById('qr-overlay').classList.remove('active');
+}
+
+function showHow() {
+  document.getElementById('how-overlay').classList.add('active');
+}
+
+function closeHow(e) {
+  document.getElementById('how-overlay').classList.remove('active');
+}
+
+// ═══════════════════════════════════════
+//  PULSE SYNC
+// ═══════════════════════════════════════
+function startPulseSync() {
+  // We want a pulse every 2 seconds, synchronized to Unix time
+  const updateDelay = () => {
+    const now = Date.now() + serverTimeOffset;
+    const delay = -(now % 2000) / 1000; // Negative delay to start mid-animation
+    const pulses = document.querySelectorAll('.sync-pulse');
+    pulses.forEach(p => {
+      p.style.setProperty('--pulse-delay', delay + 's');
+    });
+  };
+  
+  updateDelay();
+  // Update occasionally to account for drift or serverTimeOffset changes
+  setInterval(updateDelay, 5000);
+}
 
 // ═══════════════════════════════════════
 //  THEME

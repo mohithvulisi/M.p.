@@ -29,13 +29,29 @@ Since you already have Python, you can start a simple server without installing 
 
 *Note: Python's simple server does NOT provide local signaling. You will need an internet connection for the PeerJS cloud.*
 
-## Local Network Usage (WiFi Hotspot)
+## How to Test on Multiple Devices (Local Host)
 
-To use RoomSync over a local WiFi hotspot:
-1.  Enable your device's WiFi hotspot.
-2.  Connect other devices to that hotspot.
-3.  Identify the host's IP address (e.g., `192.168.1.1`).
-4.  Guests should access the app at `http://192.168.1.1:3000`.
+To ensure RoomSync is working across multiple devices on your local network:
+
+1.  **Connect to same WiFi**: Make sure your computer (the Host) and your other devices (phones, tablets, etc.) are connected to the **same WiFi network**.
+2.  **Start the Server**: Run `node server.js` in your terminal.
+3.  **Find the Network IP**: The terminal will show a **Network address** (e.g., `http://192.168.1.5:3000`).
+4.  **Open on Other Devices**:
+    -   On your computer, open `http://localhost:3000`.
+    -   On your phone/other device, open the **Network address** in the browser.
+5.  **Use the QR Code**: 
+    -   On the computer (Host), click the **📷 (Camera)** icon next to the room code.
+    -   Scan the QR code with your phone's camera to join instantly!
+6.  **Verify Sync**: 
+    -   You will see a **pinking pulse** next to the room code on both devices.
+    -   If the pulses are flashing at the exact same time, your devices are perfectly synchronized to the server time.
+    -   Play music on the Host and it will stream to all connected devices.
+
+## Enhanced Features
+- **QR Code Joining**: No more typing 6-digit codes. Scan and join.
+- **Visual Sync Pulse**: Real-time visual feedback that devices are in phase.
+- **Direct IP Detection**: Server automatically detects and displays your local network address.
+- **URL Joining**: Share the full URL (with `?room=XXXXXX`) to join automatically.
 
 ### Offline Mode Configuration
 
