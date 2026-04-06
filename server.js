@@ -20,12 +20,13 @@ function getLocalIP() {
   return 'localhost';
 }
 
-// Serve static files from the root directory
-app.use(express.static(__dirname));
+// Serve static files from the www directory
+const webDir = path.join(__dirname, 'www');
+app.use(express.static(webDir));
 
-// Serve roomsync.html at root
+// Serve index.html at root
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'roomsync.html'));
+  res.sendFile(path.join(webDir, 'index.html'));
 });
 
 const server = app.listen(port, '0.0.0.0', () => {
@@ -38,10 +39,10 @@ const server = app.listen(port, '0.0.0.0', () => {
   console.log(`On other devices, join using the Network address.`);
 });
 
-// Optional: Integrated PeerServer for true local network usage (offline-capable)
+// Integrated PeerServer for local network usage
 const peerServer = ExpressPeerServer(server, {
   debug: true,
-  path: '/roomsync-peer'
+  path: '/'
 });
 
 app.use('/peerjs', peerServer);

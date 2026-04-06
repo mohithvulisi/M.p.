@@ -12,6 +12,9 @@
     "peer": "^1.0.1"
   },
   "devDependencies": {
+    "@capacitor/android": "^6.0.0",
+    "@capacitor/cli": "^6.0.0",
+    "@capacitor/core": "^6.0.0",
     "browser-sync": "^2.29.3"
   }
 }
