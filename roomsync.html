@@ -369,13 +369,10 @@ function onPlayerStateChange(event) {
   }
 }
 
-// ── SEARCH (Mocked for privacy/no API key) ──
+// ── SEARCH ──
 async function doSearch(query) {
     const resDiv = document.getElementById('search-results');
     if (query.length < 3) { resDiv.style.display = 'none'; return; }
-
-    // In a real app, you'd fetch from YouTube Data API here
-    // For now, we'll detect if it's a direct link
     const videoId = extractVideoId(query);
     if (videoId) {
         resDiv.style.display = 'block';
@@ -422,7 +419,6 @@ async function startWithYT() {
   const val = document.getElementById('yt-search').value;
   const videoId = extractVideoId(val);
   if (videoId && queue.length === 0) addToQueue(videoId, "YouTube Video");
-  
   if (queue.length === 0) return alert("Add something to the queue first");
   isHost = true;
   await initPeer();
@@ -450,7 +446,6 @@ function loadTrack(index) {
     if (index >= queue.length) return;
     currentTrackIndex = index;
     const item = queue[index];
-
     document.getElementById('track-name').textContent = item.title;
 
     if (item.isLocal) {
@@ -473,81 +468,31 @@ function loadTrack(index) {
 function nextTrack() { if(currentTrackIndex < queue.length - 1) loadTrack(currentTrackIndex + 1); }
 function prevTrack() { if(currentTrackIndex > 0) loadTrack(currentTrackIndex - 1); }
 
-async function initPeer() {
-  roomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-  peer = new Peer('RS-' + roomCode);
+// ── SYNC ENGINE (REWRITTEN FOR STABILITY) ──
+async function sendLargeFile(targetConn, baseMsg) {
+    const file = baseMsg.file;
+    if (!file) return;
+    const chunkSize = 16384;
+    const totalChunks = Math.ceil(file.size / chunkSize);
 
-  return new Promise(resolve => {
-    peer.on('open', () => {
-      document.getElementById('room-code-display').textContent = roomCode;
-      resolve();
+    targetConn.send({
+        t: 'file-start', id: baseMsg.id, title: baseMsg.title,
+        index: baseMsg.index, mode: 'local', total: totalChunks
     });
 
-    peer.on('connection', c => {
-      connections.push(c);
-      c.on('open', () => {
-        const item = queue[currentTrackIndex];
-        c.send({
-            t: 'init',
-            index: currentTrackIndex,
-            queue: queue.map(i => ({title: i.title, isLocal: i.isLocal})),
-            current: { mode: currentMode, id: item.id, title: item.title, file: item.file }
-        });
-      });
-    });
-  });
-}
-
-// ── GUEST ──
-function doJoin() {
-  const code = document.getElementById('join-code').value.toUpperCase();
-  peer = new Peer();
-  peer.on('open', () => {
-    conn = peer.connect('RS-' + code);
-    conn.on('open', () => {
-      roomCode = code;
-      document.getElementById('room-code-display').textContent = code;
-      showScreen('s-player');
-    });
-
-    conn.on('data', data => {
-      if (data.t === 'init') {
-          queue = data.queue;
-          currentTrackIndex = data.index;
-          applyTrack(data.current);
-      } else if (data.t === 'load') {
-          currentTrackIndex = data.index;
-          applyTrack(data);
-      } else if (data.t === 'sync') {
-          syncPlayback(data);
-      } else if (data.t === 'queue') {
-          queue = data.q;
-          updateQueueUI();
-      }
-    });
-  });
-}
-
-function applyTrack(data) {
-    document.getElementById('track-name').textContent = data.title;
-    if (data.mode === 'online') {
-        currentMode = 'online';
-        document.getElementById('yt-player-container').classList.add('active');
-        document.getElementById('local-art').style.display = 'none';
-        ytPlayer.loadVideoById(data.id);
-    } else {
-        currentMode = 'local';
-        document.getElementById('yt-player-container').classList.remove('active');
-        document.getElementById('local-art').style.display = 'block';
-        const url = URL.createObjectURL(new Blob([data.file]));
-        audioEl.src = url;
-        audioEl.play();
+    for (let i = 0; i < totalChunks; i++) {
+        const chunk = await file.slice(i * chunkSize, (i + 1) * chunkSize).arrayBuffer();
+        targetConn.send({ t: 'file-chunk', i, data: chunk });
+        if (i % 20 === 0) await new Promise(r => setTimeout(r, 20));
     }
-    updateQueueUI();
 }
 
-// ── SYNC ──
-function broadcast(msg) { connections.forEach(c => c.send(msg)); }
+function broadcast(msg) {
+    connections.forEach(c => {
+        if (msg.file && msg.mode === 'local') sendLargeFile(c, msg);
+        else c.send(msg);
+    });
+}
 
 function startSyncLoop() {
   syncInterval = setInterval(() => {
@@ -564,6 +509,88 @@ function startSyncLoop() {
     updateUI(time, duration, playing);
     broadcast({ t: 'sync', time, playing });
   }, 1000);
+}
+
+let incomingFile = { chunks: [], total: 0, meta: null };
+
+function handleData(data, c) {
+    if (data.t === 'init') {
+        queue = data.queue; currentTrackIndex = data.index;
+        if (!data.current.file) applyTrack(data.current);
+    } else if (data.t === 'file-start') {
+        incomingFile = { chunks: [], total: data.total, meta: data };
+        document.getElementById('player-status').textContent = "Receiving: 0%";
+    } else if (data.t === 'file-chunk') {
+        incomingFile.chunks[data.i] = data.data;
+        const pct = Math.round((Object.keys(incomingFile.chunks).length / incomingFile.total) * 100);
+        document.getElementById('player-status').textContent = `Receiving: ${pct}%`;
+        if (Object.keys(incomingFile.chunks).length === incomingFile.total) {
+            const blob = new Blob(incomingFile.chunks);
+            applyTrack({ ...incomingFile.meta, file: blob });
+            document.getElementById('player-status').textContent = "Synced";
+        }
+    } else if (data.t === 'load') {
+        currentTrackIndex = data.index;
+        if (data.mode === 'online') applyTrack(data);
+    } else if (data.t === 'sync') {
+        syncPlayback(data);
+    } else if (data.t === 'queue') {
+        queue = data.q; updateQueueUI();
+    }
+}
+
+async function initPeer() {
+  if (peer) peer.destroy();
+  roomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+  peer = new Peer('RS-' + roomCode);
+  return new Promise(resolve => {
+    peer.on('open', () => { document.getElementById('room-code-display').textContent = roomCode; resolve(); });
+    peer.on('connection', c => {
+      connections.push(c);
+      c.on('open', () => {
+        const item = queue[currentTrackIndex];
+        const initMsg = {
+            t: 'init', index: currentTrackIndex,
+            queue: queue.map(i => ({title: i.title, isLocal: i.isLocal})),
+            current: { mode: currentMode, id: item.id, title: item.title, file: item.isLocal ? null : item.id }
+        };
+        c.send(initMsg);
+        if (item.isLocal) sendLargeFile(c, { ...item, index: currentTrackIndex });
+      });
+    });
+    peer.on('error', e => { alert("Peer Error: " + e.type); });
+  });
+}
+
+function doJoin() {
+  const code = document.getElementById('join-code').value.toUpperCase();
+  if (peer) peer.destroy();
+  peer = new Peer();
+  peer.on('open', () => {
+    conn = peer.connect('RS-' + code, { reliable: true });
+    conn.on('open', () => {
+      roomCode = code; document.getElementById('room-code-display').textContent = code;
+      showScreen('s-player');
+    });
+    conn.on('data', data => handleData(data, conn));
+  });
+}
+
+function applyTrack(data) {
+    document.getElementById('track-name').textContent = data.title;
+    if (data.mode === 'online') {
+        currentMode = 'online';
+        document.getElementById('yt-player-container').classList.add('active');
+        document.getElementById('local-art').style.display = 'none';
+        ytPlayer.loadVideoById(data.id);
+    } else {
+        currentMode = 'local';
+        document.getElementById('yt-player-container').classList.remove('active');
+        document.getElementById('local-art').style.display = 'block';
+        audioEl.src = URL.createObjectURL(data.file || new Blob([data.file]));
+        audioEl.play();
+    }
+    updateQueueUI();
 }
 
 function syncPlayback(data) {
@@ -595,7 +622,6 @@ function updateUI(time, duration, playing) {
   document.getElementById('play-icon').textContent = playing ? '⏸' : '▶';
 }
 
-// ── UTILS ──
 function formatTime(s) {
   if (!s || isNaN(s)) return "0:00";
   const min = Math.floor(s / 60);
@@ -626,18 +652,12 @@ function copyCode() {
     setTimeout(() => el.textContent = old, 1000);
 }
 
-function toggleTheme() {
-    document.body.classList.toggle('light');
-}
+function toggleTheme() { document.body.classList.toggle('light'); }
 
-// Handle Room in URL
 window.onload = () => {
     const params = new URLSearchParams(window.location.search);
     const r = params.get('room');
-    if(r) {
-        document.getElementById('join-code').value = r;
-        showScreen('s-join');
-    }
+    if(r) { document.getElementById('join-code').value = r; showScreen('s-join'); }
 }
 </script>
 </body>
