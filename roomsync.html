@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#c96bff">
 <title>RoomSync</title>
@@ -24,7 +24,7 @@
   --green: #1ed760;
   --red: #ff4f6a;
   --mono: monospace;
-  --sans: -apple-system, sans-serif;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --card-bg: rgba(255,255,255,0.05);
   --shadow: 0 32px 72px rgba(0,0,0,0.75);
 }
@@ -39,7 +39,7 @@ body.light {
   --shadow: 0 32px 72px rgba(100,80,180,0.15);
 }
 
-html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--sans); overflow: hidden; transition: background 0.3s, color 0.3s; }
+html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--sans); overflow: hidden; transition: background 0.3s, color 0.3s; touch-action: manipulation; }
 
 /* ── THEME TOGGLE ── */
 .theme-toggle {
@@ -184,9 +184,26 @@ body.light #dyn-vignette { background: radial-gradient(ellipse at center, transp
 }
 #log-console {
   position: fixed; bottom: 0; left: 0; right: 0; z-index: 2000;
-  max-height: 100px; overflow-y: auto; background: rgba(0,0,0,0.8);
+  max-height: 100px; overflow-y: auto; background: rgba(0,0,0,0.85);
   font-family: var(--mono); font-size: 8px; color: var(--green);
-  padding: 4px; pointer-events: none; display: none;
+  padding: 6px; pointer-events: none; display: none; border-top: 1px solid var(--border);
+}
+
+/* ── SYNC PULSE ── */
+.sync-pulse {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--accent); position: relative;
+  display: inline-block; margin-right: 8px;
+}
+.sync-pulse::after {
+  content: ''; position: absolute; inset: -4px;
+  border: 1px solid var(--accent); border-radius: 50%;
+  opacity: 0; animation: pulseRing 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+  animation-delay: var(--pulse-delay, 0s);
+}
+@keyframes pulseRing {
+  0% { transform: scale(0.5); opacity: 0.8; }
+  80%, 100% { transform: scale(2.5); opacity: 0; }
 }
 </style>
 </head>
@@ -212,10 +229,11 @@ body.light #dyn-vignette { background: radial-gradient(ellipse at center, transp
   <div class="land">
     <div class="land-eyebrow">◈ ROOMSYNC</div>
     <h1 class="land-title">Music.<br><em>Together.</em></h1>
-    <p class="land-sub">Sync YouTube and local files across all devices instantly</p>
+    <p class="land-sub">Sync YouTube and local files across all devices instantly with AES security.</p>
     <div class="land-btns">
       <button class="btn-fill amber" onclick="showScreen('s-setup')">Host a Room</button>
       <button class="btn-fill ghost" onclick="showScreen('s-join')">Join a Room</button>
+      <button class="btn-fill ghost" style="font-size: 11px; padding: 10px;" onclick="toggleConsole()">Toggle Debug Console</button>
     </div>
   </div>
 </div>
@@ -256,9 +274,9 @@ body.light #dyn-vignette { background: radial-gradient(ellipse at center, transp
 
 <!-- ══════════════════════════ JOIN -->
 <div class="screen" id="s-join">
-  <div class="join-wrap" style="text-align:center">
+  <div class="join-wrap" style="text-align:center; width: 100%; max-width: 340px;">
     <h2 style="margin-bottom:10px">Join a Room</h2>
-    <input class="input-field" id="join-code" type="text" maxlength="6" style="text-align:center; font-size:24px; margin-bottom:20px" placeholder="CODE">
+    <input class="input-field" id="join-code" type="text" maxlength="6" style="text-align:center; font-size:24px; margin-bottom:20px; text-transform: uppercase;" placeholder="CODE">
     <button class="btn-fill amber" style="width:100%" onclick="doJoin()">Join Room</button>
     <button class="btn-back" style="margin-top:20px; display:block; width:100%; background:none; border:none; color:var(--muted); cursor:pointer" onclick="showScreen('s-land')">← Back</button>
     <div class="status-line" id="join-status"></div>
@@ -269,7 +287,10 @@ body.light #dyn-vignette { background: radial-gradient(ellipse at center, transp
 <div class="screen" id="s-player">
   <div class="player-wrap">
     <div class="top-bar">
-      <div style="font-size:10px; letter-spacing:2px">ROOMSYNC</div>
+      <div style="display:flex; align-items:center;">
+        <div class="sync-pulse"></div>
+        <div style="font-size:10px; letter-spacing:2px">ROOMSYNC</div>
+      </div>
       <div style="display:flex; gap:8px">
         <div class="code-pill" onclick="showQR()">📷</div>
         <div class="code-pill" id="room-code-display" onclick="copyCode()">------</div>
@@ -306,7 +327,7 @@ body.light #dyn-vignette { background: radial-gradient(ellipse at center, transp
 
     <div style="display:flex; gap:10px; margin-bottom:20px">
         <button class="btn-fill ghost" style="flex:1; padding:10px; font-size:11px" onclick="toggleDim()">Battery Saver</button>
-        <button class="btn-fill ghost" style="flex:1; padding:10px; font-size:11px" id="btn-wake">WakeLock: ON</button>
+        <button class="btn-fill ghost" style="flex:1; padding:10px; font-size:11px" id="btn-wake" onclick="requestWakeLock()">WakeLock: OFF</button>
     </div>
 
     <div class="queue-wrap" id="queue-container">
@@ -324,24 +345,69 @@ body.light #dyn-vignette { background: radial-gradient(ellipse at center, transp
 <audio id="audio-el" style="display:none"></audio>
 
 <script>
+// ═══════════════════════════════════════
+//  UTILITIES: AES-GCM & Console
+// ═══════════════════════════════════════
+const CryptoUtil = {
+  key: null,
+  async init() {
+    const rawKey = new TextEncoder().encode("roomsync-secret-key-32-chars-now");
+    this.key = await crypto.subtle.importKey("raw", rawKey, { name: "AES-GCM" }, false, ["encrypt", "decrypt"]);
+  },
+  async encrypt(text) {
+    if (!this.key) await this.init();
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const encrypted = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, this.key, new TextEncoder().encode(text));
+    const combined = new Uint8Array(iv.length + encrypted.byteLength);
+    combined.set(iv); combined.set(new Uint8Array(encrypted), iv.length);
+    return btoa(String.fromCharCode(...combined)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  },
+  async decrypt(token) {
+    if (!this.key) await this.init();
+    try {
+      const combined = new Uint8Array(atob(token.replace(/-/g, '+').replace(/_/g, '/')).split('').map(c => c.charCodeAt(0)));
+      const iv = combined.slice(0, 12);
+      const data = combined.slice(12);
+      return new TextDecoder().decode(await crypto.subtle.decrypt({ name: "AES-GCM", iv }, this.key, data));
+    } catch (e) { return null; }
+  }
+};
+
 const log = (m) => {
     const el = document.getElementById('log-console');
-    el.innerHTML += `<div>[${new Date().toLocaleTimeString()}] ${m}</div>`;
+    const div = document.createElement('div');
+    div.textContent = `[${new Date().toLocaleTimeString()}] ${m}`;
+    el.appendChild(div);
     el.scrollTop = el.scrollHeight;
     console.log(m);
 };
 
+function toggleConsole() {
+    const el = document.getElementById('log-console');
+    el.style.display = el.style.display === 'block' ? 'none' : 'block';
+}
+
+// ═══════════════════════════════════════
+//  GLOBALS & STATE
+// ═══════════════════════════════════════
 let peer = null, conn = null, connections = [];
 let isHost = false, roomCode = "";
 let ytPlayer = null, currentMode = 'online';
 let audioEl = document.getElementById('audio-el');
 let syncInterval = null;
 let wakeLock = null;
+let serverTimeOffset = 0;
+let queue = [], currentTrackIndex = -1, localFiles = [];
 
-// Queue & State
-let queue = [];
-let currentTrackIndex = -1;
-let localFiles = [];
+// ── SYNC PULSE ──
+function startPulseSync() {
+  const updateDelay = () => {
+    const now = Date.now() + serverTimeOffset;
+    const delay = -(now % 2000) / 1000;
+    document.querySelectorAll('.sync-pulse').forEach(p => p.style.setProperty('--pulse-delay', delay + 's'));
+  };
+  updateDelay(); setInterval(updateDelay, 5000);
+}
 
 // ── WAKELOCK ──
 async function requestWakeLock() {
@@ -351,13 +417,9 @@ async function requestWakeLock() {
     document.getElementById('btn-wake').textContent = "WakeLock: ON";
     wakeLock.addEventListener('release', () => {
       document.getElementById('btn-wake').textContent = "WakeLock: OFF";
-      requestWakeLock();
     });
-  } catch (err) {
-    document.getElementById('btn-wake').textContent = "WakeLock: ERR";
-  }
+  } catch (err) { log("WakeLock Error: " + err.message); }
 }
-requestWakeLock();
 
 function toggleDim() {
   const overlay = document.getElementById('dim-overlay');
@@ -378,15 +440,10 @@ function onYouTubeIframeAPIReady() {
 }
 
 function onPlayerStateChange(event) {
-  if (event.data === YT.PlayerState.ENDED) {
-    if (isHost) nextTrack();
-  }
-  if (isHost) {
-    broadcast({ t: 'state', s: event.data, time: ytPlayer.getCurrentTime() });
-  }
+  if (event.data === YT.PlayerState.ENDED && isHost) nextTrack();
+  if (isHost) broadcast({ t: 'state', s: event.data, time: ytPlayer.getCurrentTime() });
 }
 
-// ── SEARCH ──
 async function doSearch(query) {
     const resDiv = document.getElementById('search-results');
     if (query.length < 3) { resDiv.style.display = 'none'; return; }
@@ -402,10 +459,7 @@ async function doSearch(query) {
 
 function addToQueue(id, title, isLocal = false, file = null) {
     const item = { id, title, isLocal, file };
-    queue.push(item);
-    updateQueueUI();
-    log(`Added ${title}`);
-
+    queue.push(item); updateQueueUI();
     if (isHost) {
         broadcast({ t: 'queue-add', item: { title, isLocal } });
         if (currentTrackIndex === -1) loadTrack(0);
@@ -414,7 +468,7 @@ function addToQueue(id, title, isLocal = false, file = null) {
 
 function updateQueueUI() {
     const list = document.getElementById('queue-list');
-    list.innerHTML = queue.slice(currentTrackIndex + 1).map((item, idx) => `
+    list.innerHTML = queue.slice(currentTrackIndex + 1).map(item => `
         <div class="queue-item">
             <span>${item.isLocal ? '🎵' : '📺'}</span>
             <span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">${item.title}</span>
@@ -441,12 +495,8 @@ async function startWithYT() {
   const val = document.getElementById('yt-search').value;
   const videoId = extractVideoId(val);
   if (videoId && queue.length === 0) addToQueue(videoId, "YouTube Video");
-
-  isHost = true;
-  await initPeer();
-  showScreen('s-player');
-  if (queue.length > 0) loadTrack(0);
-  startSyncLoop();
+  isHost = true; await initPeer();
+  showScreen('s-player'); if (queue.length > 0) loadTrack(0); startSyncLoop();
 }
 
 function handleFiles(files) {
@@ -461,34 +511,25 @@ function handleFiles(files) {
 }
 
 async function startWithLocal() {
-  isHost = true;
-  await initPeer();
-  showScreen('s-player');
-  if (queue.length > 0) loadTrack(0);
-  startSyncLoop();
+  isHost = true; await initPeer();
+  showScreen('s-player'); if (queue.length > 0) loadTrack(0); startSyncLoop();
 }
 
 function loadTrack(index) {
     if (index >= queue.length) return;
-    currentTrackIndex = index;
-    const item = queue[index];
+    currentTrackIndex = index; const item = queue[index];
     document.getElementById('track-name').textContent = item.title;
-    log(`Loading: ${item.title}`);
-
     if (item.isLocal) {
         currentMode = 'local';
         document.getElementById('yt-player-container').style.display = 'none';
         document.getElementById('local-art').style.display = 'block';
-        audioEl.src = item.id;
-        audioEl.play().catch(e => log("Audio Play Error: " + e));
+        audioEl.src = item.id; audioEl.play().catch(e => log("Audio Error: " + e));
         if(isHost) broadcast({ t: 'load', index, mode: 'local', title: item.title, file: item.file });
     } else {
         currentMode = 'online';
         document.getElementById('yt-player-container').style.display = 'block';
         document.getElementById('local-art').style.display = 'none';
-        if (ytPlayer && ytPlayer.loadVideoById) {
-            ytPlayer.loadVideoById(item.id);
-        }
+        if (ytPlayer && ytPlayer.loadVideoById) ytPlayer.loadVideoById(item.id);
         if(isHost) broadcast({ t: 'load', index, mode: 'online', id: item.id, title: item.title });
     }
     updateQueueUI();
@@ -497,19 +538,13 @@ function loadTrack(index) {
 function nextTrack() { if(currentTrackIndex < queue.length - 1) loadTrack(currentTrackIndex + 1); }
 function prevTrack() { if(currentTrackIndex > 0) loadTrack(currentTrackIndex - 1); }
 
-// ── SYNC ENGINE ──
+// ── SYNC ENGINE & CHUNKING ──
 async function sendLargeFile(targetConn, item, index) {
-    const file = item.file;
-    if (!file) return;
-    log(`Sending file: ${item.title}`);
+    const file = item.file; if (!file) return;
+    log(`Sending: ${item.title}`);
     const chunkSize = 16384;
     const totalChunks = Math.ceil(file.size / chunkSize);
-
-    targetConn.send({
-        t: 'file-start', title: item.title,
-        index: index, mode: 'local', total: totalChunks
-    });
-
+    targetConn.send({ t: 'file-start', title: item.title, index, mode: 'local', total: totalChunks });
     for (let i = 0; i < totalChunks; i++) {
         const chunk = await file.slice(i * chunkSize, (i + 1) * chunkSize).arrayBuffer();
         targetConn.send({ t: 'file-chunk', i, data: chunk });
@@ -520,12 +555,8 @@ async function sendLargeFile(targetConn, item, index) {
 function broadcast(msg) {
     connections.forEach(c => {
         if (c.open) {
-            if (msg.t === 'load' && msg.mode === 'local') {
-                const item = queue[msg.index];
-                sendLargeFile(c, item, msg.index);
-            } else {
-                c.send(msg);
-            }
+            if (msg.t === 'load' && msg.mode === 'local') sendLargeFile(c, queue[msg.index], msg.index);
+            else c.send(msg);
         }
     });
 }
@@ -537,56 +568,51 @@ function startSyncLoop() {
     let time = 0, duration = 0, playing = false;
     if (currentMode === 'online') {
       if (ytPlayer && ytPlayer.getCurrentTime) {
-          time = ytPlayer.getCurrentTime() || 0;
-          duration = ytPlayer.getDuration() || 0;
+          time = ytPlayer.getCurrentTime() || 0; duration = ytPlayer.getDuration() || 0;
           playing = ytPlayer.getPlayerState() === YT.PlayerState.PLAYING;
       }
     } else {
-      time = audioEl.currentTime || 0;
-      duration = audioEl.duration || 0;
-      playing = !audioEl.paused;
+      time = audioEl.currentTime || 0; duration = audioEl.duration || 0; playing = !audioEl.paused;
     }
     updateUI(time, duration, playing);
-    broadcast({ t: 'sync', time, playing });
+    broadcast({ t: 'sync', time, playing, hostNow: Date.now() });
   }, 2000);
 }
 
 let incomingFile = { chunks: [], total: 0, meta: null };
 
-function handleData(data, c) {
-    if (data.t === 'init') {
-        log("Init received");
-        queue = data.queue;
-        currentTrackIndex = data.index;
-        updateQueueUI();
-        if (data.current && data.current.mode === 'online') {
-            applyTrack(data.current);
+async function handleData(data, c) {
+    if (data.t === 'auth') {
+        const isValid = await CryptoUtil.decrypt(data.token);
+        if (isValid || !data.token) {
+            if (!data.token) {
+                const newToken = await CryptoUtil.encrypt("verified-guest-" + Date.now());
+                c.send({ t: 'auth_success', token: newToken });
+            }
+            log("Guest Authenticated");
         }
+    } else if (data.t === 'init') {
+        queue = data.queue; currentTrackIndex = data.index; updateQueueUI();
+        if (data.current && data.current.mode === 'online') applyTrack(data.current);
     } else if (data.t === 'file-start') {
         incomingFile = { chunks: [], total: data.total, meta: data };
-        document.getElementById('player-status').textContent = "Receiving: 0%";
     } else if (data.t === 'file-chunk') {
         incomingFile.chunks[data.i] = data.data;
         const count = Object.keys(incomingFile.chunks).length;
-        const pct = Math.round((count / incomingFile.total) * 100);
-        if (count % 10 === 0) document.getElementById('player-status').textContent = `Receiving: ${pct}%`;
+        if (count % 10 === 0) document.getElementById('player-status').textContent = `Syncing: ${Math.round((count / incomingFile.total) * 100)}%`;
         if (count === incomingFile.total) {
-            const blob = new Blob(incomingFile.chunks);
-            applyTrack({ ...incomingFile.meta, file: blob });
+            applyTrack({ ...incomingFile.meta, file: new Blob(incomingFile.chunks) });
             document.getElementById('player-status').textContent = "Synced";
         }
     } else if (data.t === 'load') {
         if (data.mode === 'online') applyTrack(data);
     } else if (data.t === 'sync') {
+        const roundTrip = Date.now() - data.hostNow;
+        const offset = data.time - (Date.now() - roundTrip / 2) / 1000;
+        serverTimeOffset = (serverTimeOffset * 0.9) + (offset * 0.1);
         syncPlayback(data);
     } else if (data.t === 'queue-add') {
-        queue.push(data.item);
-        updateQueueUI();
-    } else if (data.t === 'state') {
-        if (currentMode === 'online' && ytPlayer) {
-            if (data.s === YT.PlayerState.PLAYING) ytPlayer.playVideo();
-            else if (data.s === YT.PlayerState.PAUSED) ytPlayer.pauseVideo();
-        }
+        queue.push(data.item); updateQueueUI();
     }
 }
 
@@ -596,100 +622,87 @@ async function initPeer() {
   peer = new Peer('RS-' + roomCode);
   return new Promise(resolve => {
     peer.on('open', (id) => {
-        log("Peer Open: " + id);
-        document.getElementById('room-code-display').textContent = roomCode;
-        resolve();
+        log("Room Open: " + roomCode); document.getElementById('room-code-display').textContent = roomCode; resolve();
     });
     peer.on('connection', c => {
-      log("New connection");
       connections.push(c);
       c.on('open', () => {
         const item = queue[currentTrackIndex];
-        const initMsg = {
+        c.send({
             t: 'init', index: currentTrackIndex,
             queue: queue.map(i => ({title: i.title, isLocal: i.isLocal})),
             current: item ? { mode: item.isLocal ? 'local' : 'online', id: item.id, title: item.title } : null
-        };
-        c.send(initMsg);
+        });
         if (item && item.isLocal) sendLargeFile(c, item, currentTrackIndex);
       });
       c.on('data', d => handleData(d, c));
     });
-    peer.on('error', e => { log("Peer Error: " + e.type); });
   });
 }
 
 function doJoin() {
   const code = document.getElementById('join-code').value.toUpperCase();
-  if (!code) return;
-  if (peer) peer.destroy();
+  if (!code) return; if (peer) peer.destroy();
   peer = new Peer();
   peer.on('open', () => {
-    log("Connecting to " + code);
+    log("Joining " + code);
     conn = peer.connect('RS-' + code, { reliable: true });
-    conn.on('open', () => {
+    conn.on('open', async () => {
       roomCode = code; document.getElementById('room-code-display').textContent = code;
+      const savedToken = localStorage.getItem('rs_token_' + code);
+      conn.send({ t: 'auth', token: savedToken });
       showScreen('s-player');
-      log("Connected to Host");
     });
-    conn.on('data', data => handleData(data, conn));
-    conn.on('close', () => { log("Host disconnected"); alert("Host disconnected"); location.reload(); });
+    conn.on('data', data => {
+        if (data.t === 'auth_success') localStorage.setItem('rs_token_' + code, data.token);
+        handleData(data, conn);
+    });
+    conn.on('close', () => { alert("Disconnected"); location.reload(); });
   });
-  peer.on('error', e => { log("Join Error: " + e.type); });
 }
 
 function applyTrack(data) {
     document.getElementById('track-name').textContent = data.title;
     if (data.mode === 'online') {
-        currentMode = 'online';
-        document.getElementById('yt-player-container').style.display = 'block';
+        currentMode = 'online'; document.getElementById('yt-player-container').style.display = 'block';
         document.getElementById('local-art').style.display = 'none';
         if (ytPlayer && ytPlayer.loadVideoById) ytPlayer.loadVideoById(data.id);
     } else {
-        currentMode = 'local';
-        document.getElementById('yt-player-container').style.display = 'none';
+        currentMode = 'local'; document.getElementById('yt-player-container').style.display = 'none';
         document.getElementById('local-art').style.display = 'block';
-        const url = URL.createObjectURL(data.file);
-        audioEl.src = url;
-        audioEl.play().catch(e => log("Audio Error: " + e));
+        audioEl.src = URL.createObjectURL(data.file); audioEl.play().catch(()=>{});
     }
     updateQueueUI();
 }
 
 function syncPlayback(data) {
-  let time = 0, playing = data.playing;
+  let time = 0;
   if (currentMode === 'online' && ytPlayer && ytPlayer.getCurrentTime) {
     time = ytPlayer.getCurrentTime();
-    if (Math.abs(time - data.time) > 3) ytPlayer.seekTo(data.time);
-    if (playing) ytPlayer.playVideo(); else ytPlayer.pauseVideo();
+    if (Math.abs(time - data.time) > 2.5) ytPlayer.seekTo(data.time);
+    if (data.playing) ytPlayer.playVideo(); else ytPlayer.pauseVideo();
   } else if (currentMode === 'local') {
     time = audioEl.currentTime;
-    if (Math.abs(time - data.time) > 3) audioEl.currentTime = data.time;
-    if (playing) audioEl.play().catch(()=>{}); else audioEl.pause();
+    if (Math.abs(time - data.time) > 2.5) audioEl.currentTime = data.time;
+    if (data.playing) audioEl.play().catch(()=>{}); else audioEl.pause();
   }
-  updateUI(data.time, currentMode==='online'?ytPlayer.getDuration():audioEl.duration, playing);
+  updateUI(data.time, currentMode==='online'?ytPlayer.getDuration():audioEl.duration, data.playing);
 }
 
 function togglePlay() {
-  if (isHost) {
-      if (currentMode === 'online') {
-        if (ytPlayer.getPlayerState() === YT.PlayerState.PLAYING) ytPlayer.pauseVideo();
-        else ytPlayer.playVideo();
-      } else {
-        if (audioEl.paused) audioEl.play(); else audioEl.pause();
-      }
+  if (!isHost) return;
+  if (currentMode === 'online') {
+    if (ytPlayer.getPlayerState() === YT.PlayerState.PLAYING) ytPlayer.pauseVideo(); else ytPlayer.playVideo();
+  } else {
+    if (audioEl.paused) audioEl.play(); else audioEl.pause();
   }
 }
 
 function handleSeek(e) {
     if (!isHost) return;
-    const bar = document.getElementById('prog-bar');
-    const pct = e.offsetX / bar.offsetWidth;
-    if (currentMode === 'online') {
-        ytPlayer.seekTo(ytPlayer.getDuration() * pct);
-    } else {
-        audioEl.currentTime = audioEl.duration * pct;
-    }
+    const pct = e.offsetX / document.getElementById('prog-bar').offsetWidth;
+    if (currentMode === 'online') ytPlayer.seekTo(ytPlayer.getDuration() * pct);
+    else audioEl.currentTime = audioEl.duration * pct;
 }
 
 function updateUI(time, duration, playing) {
@@ -702,39 +715,31 @@ function updateUI(time, duration, playing) {
 
 function formatTime(s) {
   if (!s || isNaN(s)) return "0:00";
-  const min = Math.floor(s / 60);
-  const sec = Math.floor(s % 60);
-  return `${min}:${sec.toString().padStart(2, '0')}`;
+  return `${Math.floor(s/60)}:${Math.floor(s%60).toString().padStart(2,'0')}`;
 }
 
 function extractVideoId(url) {
   const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-  const match = url.match(regExp);
-  return (match && match[2].length === 11) ? match[2] : null;
+  const match = url.match(regExp); return (match && match[2].length === 11) ? match[2] : null;
 }
 
 function showQR() {
     document.getElementById('qrcode').innerHTML = "";
-    new QRCode(document.getElementById("qrcode"), {
-        text: window.location.origin + window.location.pathname + "?room=" + roomCode,
-        width: 128, height: 128
-    });
+    new QRCode(document.getElementById("qrcode"), { text: window.location.href + "?room=" + roomCode, width: 128, height: 128 });
     document.getElementById('qr-modal').style.display = 'flex';
 }
 
 function copyCode() {
     navigator.clipboard.writeText(roomCode);
-    const el = document.getElementById('room-code-display');
-    const old = el.textContent;
-    el.textContent = "COPIED!";
-    setTimeout(() => el.textContent = old, 1000);
+    const el = document.getElementById('room-code-display'); const old = el.textContent;
+    el.textContent = "COPIED!"; setTimeout(() => el.textContent = old, 1000);
 }
 
 function toggleTheme() { document.body.classList.toggle('light'); }
 
 window.onload = () => {
-    const params = new URLSearchParams(window.location.search);
-    const r = params.get('room');
+    startPulseSync(); CryptoUtil.init();
+    const r = new URLSearchParams(window.location.search).get('room');
     if(r) { document.getElementById('join-code').value = r; showScreen('s-join'); }
 }
 </script>
