@@ -149,13 +149,56 @@ body.light #dyn-vignette { background: radial-gradient(ellipse at center, transp
 .prog-fill { height: 100%; background: var(--accent); border-radius: 2px; width: 0%; }
 
 .status-line { text-align: center; font-family: var(--mono); font-size: 10px; color: var(--muted); margin-top: 12px; }
+
+/* ── YOUTUBE SEARCH ── */
+#search-results {
+  max-height: 200px; overflow-y: auto; background: var(--card-bg);
+  border-radius: 12px; margin-top: 8px; display: none;
+  border: 1px solid var(--border);
+}
+.search-item {
+  display: flex; gap: 10px; padding: 8px; cursor: pointer; border-bottom: 1px solid var(--border);
+}
+.search-item:hover { background: var(--glass); }
+.search-thumb { width: 80px; aspect-ratio: 16/9; border-radius: 4px; object-fit: cover; }
+.search-info { flex: 1; min-width: 0; }
+.search-title { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ── QUEUE ── */
+.queue-wrap { margin-top: 20px; }
+.queue-title { font-size: 12px; font-family: var(--mono); color: var(--muted); margin-bottom: 8px; letter-spacing: 2px; }
+.queue-list { display: flex; flex-direction: column; gap: 8px; }
+.queue-item { display: flex; align-items: center; gap: 10px; background: var(--glass); padding: 8px 12px; border-radius: 10px; font-size: 12px; }
+
+/* ── QR MODAL ── */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 500;
+  display: none; align-items: center; justify-content: center; backdrop-filter: blur(10px);
+}
+.modal { background: white; padding: 20px; border-radius: 20px; text-align: center; color: black; max-width: 300px; }
+
+/* ── DIM MODE ── */
+#dim-overlay {
+  position: fixed; inset: 0; background: black; z-index: 1000;
+  display: none; pointer-events: none; opacity: 0.9;
+}
 </style>
 </head>
-<body>
+<body class="dark">
 
 <div id="dyn-bg"></div>
 <div id="dyn-vignette"></div>
+<div id="dim-overlay"></div>
+
 <button class="theme-toggle" onclick="toggleTheme()">🌙</button>
+
+<div class="modal-overlay" id="qr-modal" onclick="this.style.display='none'">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h3 style="margin-bottom:10px">Join Room</h3>
+    <div id="qrcode" style="display:flex; justify-content:center; margin-bottom:15px"></div>
+    <button class="btn-fill ghost" style="width:100%; color:black" onclick="document.getElementById('qr-modal').style.display='none'">Close</button>
+  </div>
+</div>
 
 <!-- ══════════════════════════ LANDING -->
 <div class="screen active" id="s-land">
@@ -184,16 +227,18 @@ body.light #dyn-vignette { background: radial-gradient(ellipse at center, transp
 
       <div class="mode-panel active" id="panel-online">
         <div class="input-box">
-          <input type="text" class="input-field" id="yt-url" placeholder="Paste YouTube Link...">
+          <input type="text" class="input-field" id="yt-search" placeholder="Search or paste YouTube URL..." oninput="doSearch(this.value)">
         </div>
-        <button class="btn-fill amber" style="width:100%" onclick="startWithYT()">Start Room</button>
+        <div id="search-results"></div>
+        <button class="btn-fill amber" style="width:100%; margin-top:10px" onclick="startWithYT()">Start Room</button>
       </div>
 
       <div class="mode-panel" id="panel-local">
         <div class="drop-zone">
-          <input type="file" id="file-input" accept="audio/*" onchange="handleFile(this.files[0])">
-          <div>Click to choose a song</div>
+          <input type="file" id="file-input" accept="audio/*" multiple onchange="handleFiles(this.files)">
+          <div>Click to choose songs</div>
         </div>
+        <div id="local-file-list" style="font-size:11px; color:var(--muted); margin-bottom:10px"></div>
         <button class="btn-fill amber" id="local-start-btn" style="width:100%; display:none" onclick="startWithLocal()">Start Room</button>
       </div>
 
@@ -218,7 +263,10 @@ body.light #dyn-vignette { background: radial-gradient(ellipse at center, transp
   <div class="player-wrap">
     <div class="top-bar">
       <div style="font-size:10px; letter-spacing:2px">ROOMSYNC</div>
-      <div class="code-pill" id="room-code-display">------</div>
+      <div style="display:flex; gap:8px">
+        <div class="code-pill" onclick="showQR()">📷</div>
+        <div class="code-pill" id="room-code-display" onclick="copyCode()">------</div>
+      </div>
     </div>
 
     <div id="yt-player-container">
@@ -227,8 +275,9 @@ body.light #dyn-vignette { background: radial-gradient(ellipse at center, transp
 
     <div id="local-art" class="art-wrap">
       <div class="art-empty">
-        <div style="font-size:40px">🎵</div>
-        <div id="track-name" style="font-size:14px; font-weight:700">Not Playing</div>
+        <div style="font-size:40px" id="player-icon-big">🎵</div>
+        <div id="track-name" style="font-size:14px; font-weight:700; text-align:center; padding:0 20px">Not Playing</div>
+        <div id="track-artist" style="font-size:11px; color:var(--muted)">Artist</div>
       </div>
     </div>
 
@@ -241,9 +290,23 @@ body.light #dyn-vignette { background: radial-gradient(ellipse at center, transp
     </div>
 
     <div class="controls">
+      <button class="ctrl-btn" onclick="prevTrack()">⏮</button>
       <button class="ctrl-btn play" id="play-btn" onclick="togglePlay()">
         <span id="play-icon">▶</span>
       </button>
+      <button class="ctrl-btn" onclick="nextTrack()">⏭</button>
+    </div>
+
+    <div style="display:flex; gap:10px; margin-bottom:20px">
+        <button class="btn-fill ghost" style="flex:1; padding:10px; font-size:11px" onclick="toggleDim()">Battery Saver</button>
+        <button class="btn-fill ghost" style="flex:1; padding:10px; font-size:11px" id="btn-wake">WakeLock: ON</button>
+    </div>
+
+    <div class="queue-wrap" id="queue-container">
+        <div class="queue-title">UP NEXT</div>
+        <div class="queue-list" id="queue-list">
+            <div style="font-size:11px; color:var(--muted)">Queue is empty</div>
+        </div>
     </div>
 
     <div class="status-line" id="player-status">Connected</div>
@@ -256,28 +319,91 @@ body.light #dyn-vignette { background: radial-gradient(ellipse at center, transp
 <script>
 let peer = null, conn = null, connections = [];
 let isHost = false, roomCode = "";
-let ytPlayer = null, currentMode = 'online'; // 'online' or 'local'
+let ytPlayer = null, currentMode = 'online';
 let audioEl = document.getElementById('audio-el');
-let localFileBlob = null;
 let syncInterval = null;
+let wakeLock = null;
 
-// Initialize YouTube API
+// Queue & State
+let queue = [];
+let currentTrackIndex = 0;
+let localFiles = [];
+
+// ── WAKELOCK ──
+async function requestWakeLock() {
+  try {
+    wakeLock = await navigator.wakeLock.request('screen');
+    document.getElementById('btn-wake').textContent = "WakeLock: ON";
+    wakeLock.addEventListener('release', () => {
+      document.getElementById('btn-wake').textContent = "WakeLock: OFF";
+    });
+  } catch (err) {
+    document.getElementById('btn-wake').textContent = "WakeLock: ERR";
+  }
+}
+requestWakeLock();
+
+function toggleDim() {
+  const overlay = document.getElementById('dim-overlay');
+  overlay.style.display = overlay.style.display === 'block' ? 'none' : 'block';
+}
+
+// ── YOUTUBE API ──
 function onYouTubeIframeAPIReady() {
   ytPlayer = new YT.Player('yt-player', {
-    height: '100%',
-    width: '100%',
-    playerVars: { 'autoplay': 0, 'controls': 0, 'disablekb': 1 },
-    events: { 'onStateChange': onPlayerStateChange }
+    height: '100%', width: '100%',
+    playerVars: { 'autoplay': 0, 'controls': 0, 'disablekb': 1, 'rel': 0 },
+    events: {
+        'onStateChange': onPlayerStateChange,
+        'onReady': () => { if(isHost && queue.length > 0) loadTrack(0); }
+    }
   });
 }
 
 function onPlayerStateChange(event) {
+  if (event.data === YT.PlayerState.ENDED) {
+    nextTrack();
+  }
   if (isHost) {
     broadcast({ t: 'state', s: event.data, time: ytPlayer.getCurrentTime() });
   }
 }
 
-// Logic
+// ── SEARCH (Mocked for privacy/no API key) ──
+async function doSearch(query) {
+    const resDiv = document.getElementById('search-results');
+    if (query.length < 3) { resDiv.style.display = 'none'; return; }
+
+    // In a real app, you'd fetch from YouTube Data API here
+    // For now, we'll detect if it's a direct link
+    const videoId = extractVideoId(query);
+    if (videoId) {
+        resDiv.style.display = 'block';
+        resDiv.innerHTML = `<div class="search-item" onclick="addToQueue('${videoId}', 'Direct Link')">
+            <img class="search-thumb" src="https://img.youtube.com/vi/${videoId}/mqdefault.jpg">
+            <div class="search-info"><div class="search-title">Load Video from Link</div></div>
+        </div>`;
+    }
+}
+
+function addToQueue(id, title, isLocal = false, file = null) {
+    queue.push({ id, title, isLocal, file });
+    updateQueueUI();
+    if (isHost && queue.length === 1) loadTrack(0);
+    broadcast({ t: 'queue', q: queue.map(i => ({title: i.title, isLocal: i.isLocal})) });
+}
+
+function updateQueueUI() {
+    const list = document.getElementById('queue-list');
+    list.innerHTML = queue.slice(currentTrackIndex + 1).map(item => `
+        <div class="queue-item">
+            <span>${item.isLocal ? '🎵' : '📺'}</span>
+            <span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">${item.title}</span>
+        </div>
+    `).join('') || '<div style="font-size:11px; color:var(--muted)">Queue is empty</div>';
+}
+
+// ── CORE LOGIC ──
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
@@ -285,46 +411,67 @@ function showScreen(id) {
 
 function switchMode(mode) {
   currentMode = mode;
-  document.getElementById('tab-online').classList.toggle('active', mode === 'online');
-  document.getElementById('tab-local').classList.toggle('active', mode === 'local');
-  document.getElementById('panel-online').classList.toggle('active', mode === 'online');
-  document.getElementById('panel-local').classList.toggle('active', mode === 'local');
+  document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + mode).classList.add('active');
+  document.querySelectorAll('.mode-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + mode).classList.add('active');
 }
 
-// Host Logic
+// ── HOST ──
 async function startWithYT() {
-  const url = document.getElementById('yt-url').value;
-  const videoId = extractVideoId(url);
-  if (!videoId) return alert("Invalid YouTube URL");
+  const val = document.getElementById('yt-search').value;
+  const videoId = extractVideoId(val);
+  if (videoId && queue.length === 0) addToQueue(videoId, "YouTube Video");
   
+  if (queue.length === 0) return alert("Add something to the queue first");
   isHost = true;
   await initPeer();
   showScreen('s-player');
-  document.getElementById('yt-player-container').classList.add('active');
-  document.getElementById('local-art').style.display = 'none';
-
-  ytPlayer.loadVideoById(videoId);
+  loadTrack(0);
   startSyncLoop();
 }
 
-function handleFile(file) {
-  if (!file) return;
-  localFileBlob = file;
+function handleFiles(files) {
+  localFiles = Array.from(files);
+  document.getElementById('local-file-list').textContent = `${localFiles.length} files selected`;
   document.getElementById('local-start-btn').style.display = 'block';
-  document.getElementById('track-name').textContent = file.name;
+  localFiles.forEach(f => addToQueue(URL.createObjectURL(f), f.name, true, f));
 }
 
 async function startWithLocal() {
   isHost = true;
   await initPeer();
   showScreen('s-player');
-  document.getElementById('yt-player-container').classList.remove('active');
-  document.getElementById('local-art').style.display = 'block';
-
-  const url = URL.createObjectURL(localFileBlob);
-  audioEl.src = url;
+  loadTrack(0);
   startSyncLoop();
 }
+
+function loadTrack(index) {
+    if (index >= queue.length) return;
+    currentTrackIndex = index;
+    const item = queue[index];
+
+    document.getElementById('track-name').textContent = item.title;
+
+    if (item.isLocal) {
+        currentMode = 'local';
+        document.getElementById('yt-player-container').classList.remove('active');
+        document.getElementById('local-art').style.display = 'block';
+        audioEl.src = item.id;
+        audioEl.play();
+        if(isHost) broadcast({ t: 'load', index, mode: 'local', title: item.title, file: item.file });
+    } else {
+        currentMode = 'online';
+        document.getElementById('yt-player-container').classList.add('active');
+        document.getElementById('local-art').style.display = 'none';
+        ytPlayer.loadVideoById(item.id);
+        if(isHost) broadcast({ t: 'load', index, mode: 'online', id: item.id, title: item.title });
+    }
+    updateQueueUI();
+}
+
+function nextTrack() { if(currentTrackIndex < queue.length - 1) loadTrack(currentTrackIndex + 1); }
+function prevTrack() { if(currentTrackIndex > 0) loadTrack(currentTrackIndex - 1); }
 
 async function initPeer() {
   roomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -339,22 +486,22 @@ async function initPeer() {
     peer.on('connection', c => {
       connections.push(c);
       c.on('open', () => {
-        // Send initial state to guest
-        if (currentMode === 'online') {
-          c.send({ t: 'init', mode: 'online', v: ytPlayer.getVideoData().video_id });
-        } else {
-          c.send({ t: 'init', mode: 'local', name: localFileBlob.name, file: localFileBlob });
-        }
+        const item = queue[currentTrackIndex];
+        c.send({
+            t: 'init',
+            index: currentTrackIndex,
+            queue: queue.map(i => ({title: i.title, isLocal: i.isLocal})),
+            current: { mode: currentMode, id: item.id, title: item.title, file: item.file }
+        });
       });
     });
   });
 }
 
-// Guest Logic
+// ── GUEST ──
 function doJoin() {
   const code = document.getElementById('join-code').value.toUpperCase();
   peer = new Peer();
-  
   peer.on('open', () => {
     conn = peer.connect('RS-' + code);
     conn.on('open', () => {
@@ -365,43 +512,55 @@ function doJoin() {
 
     conn.on('data', data => {
       if (data.t === 'init') {
-        currentMode = data.mode;
-        if (data.mode === 'online') {
-          document.getElementById('yt-player-container').classList.add('active');
-          document.getElementById('local-art').style.display = 'none';
-          ytPlayer.loadVideoById(data.v);
-        } else {
-          document.getElementById('yt-player-container').classList.remove('active');
-          document.getElementById('local-art').style.display = 'block';
-          document.getElementById('track-name').textContent = data.name;
-          const url = URL.createObjectURL(new Blob([data.file]));
-          audioEl.src = url;
-        }
+          queue = data.queue;
+          currentTrackIndex = data.index;
+          applyTrack(data.current);
+      } else if (data.t === 'load') {
+          currentTrackIndex = data.index;
+          applyTrack(data);
       } else if (data.t === 'sync') {
-        syncPlayback(data);
+          syncPlayback(data);
+      } else if (data.t === 'queue') {
+          queue = data.q;
+          updateQueueUI();
       }
     });
   });
 }
 
-// Sync Utilities
-function broadcast(msg) {
-  connections.forEach(c => c.send(msg));
+function applyTrack(data) {
+    document.getElementById('track-name').textContent = data.title;
+    if (data.mode === 'online') {
+        currentMode = 'online';
+        document.getElementById('yt-player-container').classList.add('active');
+        document.getElementById('local-art').style.display = 'none';
+        ytPlayer.loadVideoById(data.id);
+    } else {
+        currentMode = 'local';
+        document.getElementById('yt-player-container').classList.remove('active');
+        document.getElementById('local-art').style.display = 'block';
+        const url = URL.createObjectURL(new Blob([data.file]));
+        audioEl.src = url;
+        audioEl.play();
+    }
+    updateQueueUI();
 }
+
+// ── SYNC ──
+function broadcast(msg) { connections.forEach(c => c.send(msg)); }
 
 function startSyncLoop() {
   syncInterval = setInterval(() => {
     let time = 0, duration = 0, playing = false;
     if (currentMode === 'online') {
-      time = ytPlayer.getCurrentTime();
-      duration = ytPlayer.getDuration();
+      time = ytPlayer.getCurrentTime() || 0;
+      duration = ytPlayer.getDuration() || 0;
       playing = ytPlayer.getPlayerState() === YT.PlayerState.PLAYING;
     } else {
-      time = audioEl.currentTime;
-      duration = audioEl.duration;
+      time = audioEl.currentTime || 0;
+      duration = audioEl.duration || 0;
       playing = !audioEl.paused;
     }
-
     updateUI(time, duration, playing);
     broadcast({ t: 'sync', time, playing });
   }, 1000);
@@ -424,19 +583,19 @@ function togglePlay() {
     if (ytPlayer.getPlayerState() === YT.PlayerState.PLAYING) ytPlayer.pauseVideo();
     else ytPlayer.playVideo();
   } else {
-    if (audioEl.paused) audioEl.play();
-    else audioEl.pause();
+    if (audioEl.paused) audioEl.play(); else audioEl.pause();
   }
 }
 
 function updateUI(time, duration, playing) {
-  const pct = (time / duration) * 100;
+  const pct = (time / duration) * 100 || 0;
   document.getElementById('prog-fill').style.width = pct + '%';
   document.getElementById('curr-time').textContent = formatTime(time);
   document.getElementById('total-time').textContent = formatTime(duration);
   document.getElementById('play-icon').textContent = playing ? '⏸' : '▶';
 }
 
+// ── UTILS ──
 function formatTime(s) {
   if (!s || isNaN(s)) return "0:00";
   const min = Math.floor(s / 60);
@@ -448,6 +607,37 @@ function extractVideoId(url) {
   const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
   const match = url.match(regExp);
   return (match && match[2].length === 11) ? match[2] : null;
+}
+
+function showQR() {
+    document.getElementById('qrcode').innerHTML = "";
+    new QRCode(document.getElementById("qrcode"), {
+        text: window.location.href.split('?')[0] + "?room=" + roomCode,
+        width: 128, height: 128
+    });
+    document.getElementById('qr-modal').style.display = 'flex';
+}
+
+function copyCode() {
+    navigator.clipboard.writeText(roomCode);
+    const el = document.getElementById('room-code-display');
+    const old = el.textContent;
+    el.textContent = "COPIED!";
+    setTimeout(() => el.textContent = old, 1000);
+}
+
+function toggleTheme() {
+    document.body.classList.toggle('light');
+}
+
+// Handle Room in URL
+window.onload = () => {
+    const params = new URLSearchParams(window.location.search);
+    const r = params.get('room');
+    if(r) {
+        document.getElementById('join-code').value = r;
+        showScreen('s-join');
+    }
 }
 </script>
 </body>
