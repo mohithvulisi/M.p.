@@ -180,7 +180,13 @@ body.light #dyn-vignette { background: radial-gradient(ellipse at center, transp
 /* ── DIM MODE ── */
 #dim-overlay {
   position: fixed; inset: 0; background: black; z-index: 1000;
-  display: none; pointer-events: none; opacity: 0.9;
+  display: none; pointer-events: none; opacity: 0.94;
+}
+#log-console {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 2000;
+  max-height: 100px; overflow-y: auto; background: rgba(0,0,0,0.8);
+  font-family: var(--mono); font-size: 8px; color: var(--green);
+  padding: 4px; pointer-events: none; display: none;
 }
 </style>
 </head>
@@ -189,6 +195,7 @@ body.light #dyn-vignette { background: radial-gradient(ellipse at center, transp
 <div id="dyn-bg"></div>
 <div id="dyn-vignette"></div>
 <div id="dim-overlay"></div>
+<div id="log-console"></div>
 
 <button class="theme-toggle" onclick="toggleTheme()">🌙</button>
 
@@ -317,6 +324,13 @@ body.light #dyn-vignette { background: radial-gradient(ellipse at center, transp
 <audio id="audio-el" style="display:none"></audio>
 
 <script>
+const log = (m) => {
+    const el = document.getElementById('log-console');
+    el.innerHTML += `<div>[${new Date().toLocaleTimeString()}] ${m}</div>`;
+    el.scrollTop = el.scrollHeight;
+    console.log(m);
+};
+
 let peer = null, conn = null, connections = [];
 let isHost = false, roomCode = "";
 let ytPlayer = null, currentMode = 'online';
@@ -326,16 +340,18 @@ let wakeLock = null;
 
 // Queue & State
 let queue = [];
-let currentTrackIndex = 0;
+let currentTrackIndex = -1;
 let localFiles = [];
 
 // ── WAKELOCK ──
 async function requestWakeLock() {
+  if (!('wakeLock' in navigator)) return;
   try {
     wakeLock = await navigator.wakeLock.request('screen');
     document.getElementById('btn-wake').textContent = "WakeLock: ON";
     wakeLock.addEventListener('release', () => {
       document.getElementById('btn-wake').textContent = "WakeLock: OFF";
+      requestWakeLock();
     });
   } catch (err) {
     document.getElementById('btn-wake').textContent = "WakeLock: ERR";
@@ -352,17 +368,18 @@ function toggleDim() {
 function onYouTubeIframeAPIReady() {
   ytPlayer = new YT.Player('yt-player', {
     height: '100%', width: '100%',
-    playerVars: { 'autoplay': 0, 'controls': 0, 'disablekb': 1, 'rel': 0 },
+    playerVars: { 'autoplay': 1, 'controls': 0, 'disablekb': 1, 'rel': 0, 'playsinline': 1 },
     events: {
         'onStateChange': onPlayerStateChange,
-        'onReady': () => { if(isHost && queue.length > 0) loadTrack(0); }
+        'onReady': () => { log("YT Ready"); if(isHost && queue.length > 0 && currentTrackIndex === -1) loadTrack(0); },
+        'onError': (e) => log("YT Error: " + e.data)
     }
   });
 }
 
 function onPlayerStateChange(event) {
   if (event.data === YT.PlayerState.ENDED) {
-    nextTrack();
+    if (isHost) nextTrack();
   }
   if (isHost) {
     broadcast({ t: 'state', s: event.data, time: ytPlayer.getCurrentTime() });
@@ -376,23 +393,28 @@ async function doSearch(query) {
     const videoId = extractVideoId(query);
     if (videoId) {
         resDiv.style.display = 'block';
-        resDiv.innerHTML = `<div class="search-item" onclick="addToQueue('${videoId}', 'Direct Link')">
+        resDiv.innerHTML = `<div class="search-item" onclick="addToQueue('${videoId}', 'YouTube Video')">
             <img class="search-thumb" src="https://img.youtube.com/vi/${videoId}/mqdefault.jpg">
-            <div class="search-info"><div class="search-title">Load Video from Link</div></div>
+            <div class="search-info"><div class="search-title">Add to Queue</div></div>
         </div>`;
     }
 }
 
 function addToQueue(id, title, isLocal = false, file = null) {
-    queue.push({ id, title, isLocal, file });
+    const item = { id, title, isLocal, file };
+    queue.push(item);
     updateQueueUI();
-    if (isHost && queue.length === 1) loadTrack(0);
-    broadcast({ t: 'queue', q: queue.map(i => ({title: i.title, isLocal: i.isLocal})) });
+    log(`Added ${title}`);
+
+    if (isHost) {
+        broadcast({ t: 'queue-add', item: { title, isLocal } });
+        if (currentTrackIndex === -1) loadTrack(0);
+    }
 }
 
 function updateQueueUI() {
     const list = document.getElementById('queue-list');
-    list.innerHTML = queue.slice(currentTrackIndex + 1).map(item => `
+    list.innerHTML = queue.slice(currentTrackIndex + 1).map((item, idx) => `
         <div class="queue-item">
             <span>${item.isLocal ? '🎵' : '📺'}</span>
             <span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">${item.title}</span>
@@ -419,11 +441,11 @@ async function startWithYT() {
   const val = document.getElementById('yt-search').value;
   const videoId = extractVideoId(val);
   if (videoId && queue.length === 0) addToQueue(videoId, "YouTube Video");
-  if (queue.length === 0) return alert("Add something to the queue first");
+
   isHost = true;
   await initPeer();
   showScreen('s-player');
-  loadTrack(0);
+  if (queue.length > 0) loadTrack(0);
   startSyncLoop();
 }
 
@@ -431,14 +453,18 @@ function handleFiles(files) {
   localFiles = Array.from(files);
   document.getElementById('local-file-list').textContent = `${localFiles.length} files selected`;
   document.getElementById('local-start-btn').style.display = 'block';
-  localFiles.forEach(f => addToQueue(URL.createObjectURL(f), f.name, true, f));
+  localFiles.forEach(f => {
+      const url = URL.createObjectURL(f);
+      queue.push({ id: url, title: f.name, isLocal: true, file: f });
+  });
+  updateQueueUI();
 }
 
 async function startWithLocal() {
   isHost = true;
   await initPeer();
   showScreen('s-player');
-  loadTrack(0);
+  if (queue.length > 0) loadTrack(0);
   startSyncLoop();
 }
 
@@ -447,19 +473,22 @@ function loadTrack(index) {
     currentTrackIndex = index;
     const item = queue[index];
     document.getElementById('track-name').textContent = item.title;
+    log(`Loading: ${item.title}`);
 
     if (item.isLocal) {
         currentMode = 'local';
-        document.getElementById('yt-player-container').classList.remove('active');
+        document.getElementById('yt-player-container').style.display = 'none';
         document.getElementById('local-art').style.display = 'block';
         audioEl.src = item.id;
-        audioEl.play();
+        audioEl.play().catch(e => log("Audio Play Error: " + e));
         if(isHost) broadcast({ t: 'load', index, mode: 'local', title: item.title, file: item.file });
     } else {
         currentMode = 'online';
-        document.getElementById('yt-player-container').classList.add('active');
+        document.getElementById('yt-player-container').style.display = 'block';
         document.getElementById('local-art').style.display = 'none';
-        ytPlayer.loadVideoById(item.id);
+        if (ytPlayer && ytPlayer.loadVideoById) {
+            ytPlayer.loadVideoById(item.id);
+        }
         if(isHost) broadcast({ t: 'load', index, mode: 'online', id: item.id, title: item.title });
     }
     updateQueueUI();
@@ -468,39 +497,50 @@ function loadTrack(index) {
 function nextTrack() { if(currentTrackIndex < queue.length - 1) loadTrack(currentTrackIndex + 1); }
 function prevTrack() { if(currentTrackIndex > 0) loadTrack(currentTrackIndex - 1); }
 
-// ── SYNC ENGINE (REWRITTEN FOR STABILITY) ──
-async function sendLargeFile(targetConn, baseMsg) {
-    const file = baseMsg.file;
+// ── SYNC ENGINE ──
+async function sendLargeFile(targetConn, item, index) {
+    const file = item.file;
     if (!file) return;
+    log(`Sending file: ${item.title}`);
     const chunkSize = 16384;
     const totalChunks = Math.ceil(file.size / chunkSize);
 
     targetConn.send({
-        t: 'file-start', id: baseMsg.id, title: baseMsg.title,
-        index: baseMsg.index, mode: 'local', total: totalChunks
+        t: 'file-start', title: item.title,
+        index: index, mode: 'local', total: totalChunks
     });
 
     for (let i = 0; i < totalChunks; i++) {
         const chunk = await file.slice(i * chunkSize, (i + 1) * chunkSize).arrayBuffer();
         targetConn.send({ t: 'file-chunk', i, data: chunk });
-        if (i % 20 === 0) await new Promise(r => setTimeout(r, 20));
+        if (i % 20 === 0) await new Promise(r => setTimeout(r, 10));
     }
 }
 
 function broadcast(msg) {
     connections.forEach(c => {
-        if (msg.file && msg.mode === 'local') sendLargeFile(c, msg);
-        else c.send(msg);
+        if (c.open) {
+            if (msg.t === 'load' && msg.mode === 'local') {
+                const item = queue[msg.index];
+                sendLargeFile(c, item, msg.index);
+            } else {
+                c.send(msg);
+            }
+        }
     });
 }
 
 function startSyncLoop() {
+  if (syncInterval) clearInterval(syncInterval);
   syncInterval = setInterval(() => {
+    if (!isHost) return;
     let time = 0, duration = 0, playing = false;
     if (currentMode === 'online') {
-      time = ytPlayer.getCurrentTime() || 0;
-      duration = ytPlayer.getDuration() || 0;
-      playing = ytPlayer.getPlayerState() === YT.PlayerState.PLAYING;
+      if (ytPlayer && ytPlayer.getCurrentTime) {
+          time = ytPlayer.getCurrentTime() || 0;
+          duration = ytPlayer.getDuration() || 0;
+          playing = ytPlayer.getPlayerState() === YT.PlayerState.PLAYING;
+      }
     } else {
       time = audioEl.currentTime || 0;
       duration = audioEl.duration || 0;
@@ -508,34 +548,45 @@ function startSyncLoop() {
     }
     updateUI(time, duration, playing);
     broadcast({ t: 'sync', time, playing });
-  }, 1000);
+  }, 2000);
 }
 
 let incomingFile = { chunks: [], total: 0, meta: null };
 
 function handleData(data, c) {
     if (data.t === 'init') {
-        queue = data.queue; currentTrackIndex = data.index;
-        if (!data.current.file) applyTrack(data.current);
+        log("Init received");
+        queue = data.queue;
+        currentTrackIndex = data.index;
+        updateQueueUI();
+        if (data.current && data.current.mode === 'online') {
+            applyTrack(data.current);
+        }
     } else if (data.t === 'file-start') {
         incomingFile = { chunks: [], total: data.total, meta: data };
         document.getElementById('player-status').textContent = "Receiving: 0%";
     } else if (data.t === 'file-chunk') {
         incomingFile.chunks[data.i] = data.data;
-        const pct = Math.round((Object.keys(incomingFile.chunks).length / incomingFile.total) * 100);
-        document.getElementById('player-status').textContent = `Receiving: ${pct}%`;
-        if (Object.keys(incomingFile.chunks).length === incomingFile.total) {
+        const count = Object.keys(incomingFile.chunks).length;
+        const pct = Math.round((count / incomingFile.total) * 100);
+        if (count % 10 === 0) document.getElementById('player-status').textContent = `Receiving: ${pct}%`;
+        if (count === incomingFile.total) {
             const blob = new Blob(incomingFile.chunks);
             applyTrack({ ...incomingFile.meta, file: blob });
             document.getElementById('player-status').textContent = "Synced";
         }
     } else if (data.t === 'load') {
-        currentTrackIndex = data.index;
         if (data.mode === 'online') applyTrack(data);
     } else if (data.t === 'sync') {
         syncPlayback(data);
-    } else if (data.t === 'queue') {
-        queue = data.q; updateQueueUI();
+    } else if (data.t === 'queue-add') {
+        queue.push(data.item);
+        updateQueueUI();
+    } else if (data.t === 'state') {
+        if (currentMode === 'online' && ytPlayer) {
+            if (data.s === YT.PlayerState.PLAYING) ytPlayer.playVideo();
+            else if (data.s === YT.PlayerState.PAUSED) ytPlayer.pauseVideo();
+        }
     }
 }
 
@@ -544,74 +595,101 @@ async function initPeer() {
   roomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
   peer = new Peer('RS-' + roomCode);
   return new Promise(resolve => {
-    peer.on('open', () => { document.getElementById('room-code-display').textContent = roomCode; resolve(); });
+    peer.on('open', (id) => {
+        log("Peer Open: " + id);
+        document.getElementById('room-code-display').textContent = roomCode;
+        resolve();
+    });
     peer.on('connection', c => {
+      log("New connection");
       connections.push(c);
       c.on('open', () => {
         const item = queue[currentTrackIndex];
         const initMsg = {
             t: 'init', index: currentTrackIndex,
             queue: queue.map(i => ({title: i.title, isLocal: i.isLocal})),
-            current: { mode: currentMode, id: item.id, title: item.title, file: item.isLocal ? null : item.id }
+            current: item ? { mode: item.isLocal ? 'local' : 'online', id: item.id, title: item.title } : null
         };
         c.send(initMsg);
-        if (item.isLocal) sendLargeFile(c, { ...item, index: currentTrackIndex });
+        if (item && item.isLocal) sendLargeFile(c, item, currentTrackIndex);
       });
+      c.on('data', d => handleData(d, c));
     });
-    peer.on('error', e => { alert("Peer Error: " + e.type); });
+    peer.on('error', e => { log("Peer Error: " + e.type); });
   });
 }
 
 function doJoin() {
   const code = document.getElementById('join-code').value.toUpperCase();
+  if (!code) return;
   if (peer) peer.destroy();
   peer = new Peer();
   peer.on('open', () => {
+    log("Connecting to " + code);
     conn = peer.connect('RS-' + code, { reliable: true });
     conn.on('open', () => {
       roomCode = code; document.getElementById('room-code-display').textContent = code;
       showScreen('s-player');
+      log("Connected to Host");
     });
     conn.on('data', data => handleData(data, conn));
+    conn.on('close', () => { log("Host disconnected"); alert("Host disconnected"); location.reload(); });
   });
+  peer.on('error', e => { log("Join Error: " + e.type); });
 }
 
 function applyTrack(data) {
     document.getElementById('track-name').textContent = data.title;
     if (data.mode === 'online') {
         currentMode = 'online';
-        document.getElementById('yt-player-container').classList.add('active');
+        document.getElementById('yt-player-container').style.display = 'block';
         document.getElementById('local-art').style.display = 'none';
-        ytPlayer.loadVideoById(data.id);
+        if (ytPlayer && ytPlayer.loadVideoById) ytPlayer.loadVideoById(data.id);
     } else {
         currentMode = 'local';
-        document.getElementById('yt-player-container').classList.remove('active');
+        document.getElementById('yt-player-container').style.display = 'none';
         document.getElementById('local-art').style.display = 'block';
-        audioEl.src = URL.createObjectURL(data.file || new Blob([data.file]));
-        audioEl.play();
+        const url = URL.createObjectURL(data.file);
+        audioEl.src = url;
+        audioEl.play().catch(e => log("Audio Error: " + e));
     }
     updateQueueUI();
 }
 
 function syncPlayback(data) {
-  if (currentMode === 'online') {
-    const diff = Math.abs(ytPlayer.getCurrentTime() - data.time);
-    if (diff > 2) ytPlayer.seekTo(data.time);
-    if (data.playing) ytPlayer.playVideo(); else ytPlayer.pauseVideo();
-  } else {
-    const diff = Math.abs(audioEl.currentTime - data.time);
-    if (diff > 2) audioEl.currentTime = data.time;
-    if (data.playing) audioEl.play(); else audioEl.pause();
+  let time = 0, playing = data.playing;
+  if (currentMode === 'online' && ytPlayer && ytPlayer.getCurrentTime) {
+    time = ytPlayer.getCurrentTime();
+    if (Math.abs(time - data.time) > 3) ytPlayer.seekTo(data.time);
+    if (playing) ytPlayer.playVideo(); else ytPlayer.pauseVideo();
+  } else if (currentMode === 'local') {
+    time = audioEl.currentTime;
+    if (Math.abs(time - data.time) > 3) audioEl.currentTime = data.time;
+    if (playing) audioEl.play().catch(()=>{}); else audioEl.pause();
   }
+  updateUI(data.time, currentMode==='online'?ytPlayer.getDuration():audioEl.duration, playing);
 }
 
 function togglePlay() {
-  if (currentMode === 'online') {
-    if (ytPlayer.getPlayerState() === YT.PlayerState.PLAYING) ytPlayer.pauseVideo();
-    else ytPlayer.playVideo();
-  } else {
-    if (audioEl.paused) audioEl.play(); else audioEl.pause();
+  if (isHost) {
+      if (currentMode === 'online') {
+        if (ytPlayer.getPlayerState() === YT.PlayerState.PLAYING) ytPlayer.pauseVideo();
+        else ytPlayer.playVideo();
+      } else {
+        if (audioEl.paused) audioEl.play(); else audioEl.pause();
+      }
   }
+}
+
+function handleSeek(e) {
+    if (!isHost) return;
+    const bar = document.getElementById('prog-bar');
+    const pct = e.offsetX / bar.offsetWidth;
+    if (currentMode === 'online') {
+        ytPlayer.seekTo(ytPlayer.getDuration() * pct);
+    } else {
+        audioEl.currentTime = audioEl.duration * pct;
+    }
 }
 
 function updateUI(time, duration, playing) {
@@ -638,7 +716,7 @@ function extractVideoId(url) {
 function showQR() {
     document.getElementById('qrcode').innerHTML = "";
     new QRCode(document.getElementById("qrcode"), {
-        text: window.location.href.split('?')[0] + "?room=" + roomCode,
+        text: window.location.origin + window.location.pathname + "?room=" + roomCode,
         width: 128, height: 128
     });
     document.getElementById('qr-modal').style.display = 'flex';
