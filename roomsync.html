@@ -8,6 +8,7 @@
 <title>RoomSync</title>
 <script src="lib/peerjs.min.js"></script>
 <script src="lib/qrcode.min.js"></script>
+<script src="https://www.youtube.com/iframe_api"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -100,7 +101,7 @@ body.light #dyn-vignette { background: radial-gradient(ellipse at center, transp
 .btn-fill.ghost { background: var(--glass); border: 1px solid var(--border); color: var(--text); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); }
 .btn-fill.ghost:hover { background: var(--glass-hover); transform: translateY(-2px); }
 
-/* ── HOST SETUP SCREEN ── */
+/* ── SETUP SCREEN ── */
 .setup-outer { width: 100%; max-width: 400px; }
 .glass-card { 
   background: var(--card-bg); 
@@ -108,327 +109,63 @@ body.light #dyn-vignette { background: radial-gradient(ellipse at center, transp
   border: 1px solid var(--border); 
   border-radius: 24px; padding: 28px; 
   box-shadow: var(--shadow);
-  transition: transform 0.3s ease;
 }
-.glass-card:hover { transform: translateY(-4px); }
-
 .setup-title { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
-.setup-sub { font-size: 13px; color: var(--muted); margin-bottom: 22px; line-height: 1.5; }
+.setup-sub { font-size: 13px; color: var(--muted); margin-bottom: 22px; }
 
-/* Mode tabs */
 .mode-tabs { display: flex; gap: 6px; margin-bottom: 20px; background: rgba(0,0,0,0.25); border-radius: 12px; padding: 4px; }
-body.light .mode-tabs { background: rgba(0,0,0,0.07); }
-.mode-tab { flex: 1; padding: 10px 6px; border: none; border-radius: 9px; background: transparent; color: var(--muted); font-family: var(--sans); font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; display: flex; flex-direction: column; align-items: center; gap: 4px; }
-.mode-tab .tab-icon { font-size: 18px; }
+.mode-tab { flex: 1; padding: 10px 6px; border: none; border-radius: 9px; background: transparent; color: var(--muted); font-size: 12px; font-weight: 600; cursor: pointer; }
 .mode-tab.active { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; }
-.mode-tab:not(.active):hover { color: var(--text); background: var(--glass); }
 
-/* Mode panels */
 .mode-panel { display: none; }
 .mode-panel.active { display: block; }
 
-/* ── STREAM MODE ── */
-.service-logos { display: flex; justify-content: center; gap: 10px; margin-bottom: 18px; flex-wrap: wrap; }
-.svc-chip {
-  display: flex; align-items: center; gap: 6px;
-  background: var(--glass); border: 1px solid var(--border);
-  border-radius: 20px; padding: 6px 12px;
-  font-size: 11px; font-weight: 600; color: var(--muted);
-  transition: all 0.2s;
-}
-.svc-chip svg { flex-shrink: 0; }
-
-.how-to-box {
-  background: rgba(0,0,0,0.3); border-radius: 14px; padding: 14px 16px; margin-bottom: 16px;
-}
-body.light .how-to-box { background: rgba(0,0,0,0.05); border: 1px solid var(--border); }
-.how-step { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; font-size: 12px; color: var(--muted); line-height: 1.55; }
-.how-step:last-child { margin-bottom: 0; }
-.how-num { width: 20px; height: 20px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; font-size: 10px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
-
-.big-btn {
-  width: 100%; padding: 16px; border: none; border-radius: 14px;
-  background: linear-gradient(135deg, var(--accent), var(--accent2));
-  color: #fff; font-family: var(--sans); font-size: 14px; font-weight: 700;
-  cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 10px;
-  letter-spacing: 0.2px; margin-bottom: 10px;
-}
-.big-btn:hover { opacity: 0.88; transform: translateY(-2px); box-shadow: 0 8px 28px rgba(201,107,255,0.4); }
-.big-btn.on { background: linear-gradient(135deg, #1ed760, #17b04d); box-shadow: 0 8px 28px rgba(30,215,96,0.3); }
-.big-btn.on:hover { box-shadow: 0 12px 36px rgba(30,215,96,0.45); }
-
-.stream-status { font-family: var(--mono); font-size: 9px; letter-spacing: 2px; color: var(--muted); text-align: center; margin-bottom: 4px; min-height: 14px; }
+/* ── ONLINE (YOUTUBE) MODE ── */
+.input-box { display: flex; gap: 8px; margin-bottom: 16px; }
+.input-field { flex: 1; background: var(--glass); border: 1px solid var(--border); border-radius: 12px; padding: 12px; color: var(--text); outline: none; }
+.input-field:focus { border-color: var(--accent); }
 
 /* ── LOCAL FILES MODE ── */
-.drop-zone {
-  border: 2px dashed var(--border); border-radius: 16px; padding: 28px 20px;
-  text-align: center; cursor: pointer; transition: all 0.2s; margin-bottom: 14px;
-  position: relative;
-}
-.drop-zone:hover, .drop-zone.drag-over { border-color: var(--accent); background: rgba(201,107,255,0.06); }
-.drop-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
-.drop-icon { font-size: 32px; margin-bottom: 8px; }
-.drop-title { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
-.drop-sub { font-size: 11px; color: var(--muted); }
-.drop-formats { font-family: var(--mono); font-size: 9px; color: var(--muted); margin-top: 6px; letter-spacing: 1px; }
+.drop-zone { border: 2px dashed var(--border); border-radius: 16px; padding: 28px 20px; text-align: center; cursor: pointer; margin-bottom: 14px; position: relative; }
+.drop-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
 
-/* Local playlist */
-.local-playlist { max-height: 180px; overflow-y: auto; margin-bottom: 14px; display: flex; flex-direction: column; gap: 4px; }
-.local-playlist::-webkit-scrollbar { width: 4px; }
-.local-playlist::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-.playlist-item {
-  display: flex; align-items: center; gap: 10px; padding: 10px 12px;
-  border-radius: 10px; cursor: pointer; transition: all 0.15s;
-  border: 1px solid transparent;
-}
-.playlist-item:hover { background: var(--glass); }
-.playlist-item.playing { background: rgba(201,107,255,0.1); border-color: rgba(201,107,255,0.25); }
-.playlist-item.playing .pl-name { color: var(--accent); }
-.pl-num { font-family: var(--mono); font-size: 10px; color: var(--muted); width: 18px; flex-shrink: 0; text-align: right; }
-.pl-icon { font-size: 14px; flex-shrink: 0; width: 18px; text-align: center; }
-.pl-name { font-size: 13px; font-weight: 500; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pl-dur { font-family: var(--mono); font-size: 10px; color: var(--muted); flex-shrink: 0; }
-
-/* ── PLAYER (HOST + GUEST) ── */
-.player-wrap { width: 100%; max-width: 360px; padding-bottom: 8px; }
+/* ── PLAYER ── */
+.player-wrap { width: 100%; max-width: 360px; }
+#yt-player-container { width: 100%; aspect-ratio: 16/9; border-radius: 12px; overflow: hidden; margin-bottom: 20px; display: none; }
+#yt-player-container.active { display: block; }
 
 .top-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
-.top-wordmark { font-family: var(--mono); font-size: 10px; letter-spacing: 4px; color: var(--muted); }
-.code-pill {
-  background: rgba(201,107,255,0.1); border: 1px solid rgba(201,107,255,0.3);
-  border-radius: 20px; padding: 7px 16px;
-  font-family: var(--mono); font-size: 11px; letter-spacing: 3px;
-  color: var(--accent); cursor: pointer; transition: all 0.2s; position: relative; user-select: none;
-}
-.code-pill:hover { background: rgba(201,107,255,0.2); border-color: var(--accent); }
-.code-pill .copy-tooltip {
-  position: absolute; top: -30px; left: 50%; transform: translateX(-50%);
-  background: var(--accent); color: #fff; font-size: 9px; padding: 3px 8px;
-  border-radius: 6px; white-space: nowrap; pointer-events: none;
-  opacity: 0; transition: opacity 0.2s;
-}
-.code-pill.copied .copy-tooltip { opacity: 1; }
+.code-pill { background: rgba(201,107,255,0.1); border: 1px solid rgba(201,107,255,0.3); border-radius: 20px; padding: 7px 16px; font-family: var(--mono); font-size: 11px; letter-spacing: 3px; color: var(--accent); cursor: pointer; }
 
-/* ── QR CODE MODAL ── */
-.qr-overlay {
-  position: fixed; inset: 0; z-index: 200;
-  background: rgba(0,0,0,0.8); backdrop-filter: blur(10px);
-  display: none; align-items: center; justify-content: center;
-  animation: fadeIn 0.3s ease;
-}
-.qr-overlay.active { display: flex; }
-.qr-modal {
-  background: white; padding: 24px; border-radius: 20px;
-  text-align: center; color: #000; max-width: 300px; width: 90%;
-}
-.qr-modal h3 { margin-bottom: 12px; font-size: 18px; }
-.qr-modal p { font-size: 12px; margin-bottom: 20px; color: #666; }
-#qr-container { display: flex; justify-content: center; margin-bottom: 20px; }
-.btn-close-qr { width: 100%; padding: 12px; border: none; border-radius: 12px; background: #eee; cursor: pointer; font-weight: 700; }
-
-/* ── SYNC PULSE ── */
-.sync-pulse {
-  width: 12px; height: 12px; border-radius: 50%;
-  background: var(--accent); position: relative;
-  transition: transform 0.1s ease;
-}
-.sync-pulse::after {
-  content: ''; position: absolute; inset: -4px;
-  border: 2px solid var(--accent); border-radius: 50%;
-  opacity: 0; animation: pulseRing 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
-  animation-delay: var(--pulse-delay, 0s);
-}
-@keyframes pulseRing {
-  0% { transform: scale(0.5); opacity: 0.8; }
-  80%, 100% { transform: scale(2.5); opacity: 0; }
-}
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-
-/* ── HOW TO CONNECT MODAL ── */
-.how-overlay {
-  position: fixed; inset: 0; z-index: 250;
-  background: rgba(0,0,0,0.85); backdrop-filter: blur(15px);
-  display: none; align-items: center; justify-content: center;
-  animation: fadeIn 0.3s ease; padding: 20px;
-}
-.how-overlay.active { display: flex; }
-.how-card {
-  background: var(--card-bg); border: 1px solid var(--border);
-  border-radius: 28px; padding: 32px; max-width: 440px; width: 100%;
-  box-shadow: var(--shadow);
-}
-.how-title { font-size: 24px; font-weight: 700; margin-bottom: 24px; text-align: center; }
-.how-list { display: flex; flex-direction: column; gap: 20px; margin-bottom: 32px; }
-.how-item { display: flex; align-items: flex-start; gap: 16px; }
-.how-idx {
-  width: 28px; height: 28px; border-radius: 50%;
-  background: linear-gradient(135deg, var(--accent), var(--accent2));
-  color: #fff; font-size: 13px; font-weight: 800;
-  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-}
-.how-text h4 { font-size: 15px; margin-bottom: 4px; color: var(--text); }
-.how-text p { font-size: 13px; color: var(--muted); line-height: 1.5; }
-
-/* Album art */
 .art-wrap { position: relative; margin-bottom: 20px; }
-.art-img { width: 100%; aspect-ratio: 1; border-radius: 20px; object-fit: cover; display: none; box-shadow: 0 28px 64px rgba(0,0,0,0.7); }
-.art-empty {
-  width: 100%; aspect-ratio: 1; border-radius: 20px;
-  background: var(--card-bg); border: 1px solid var(--border);
-  display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 12px;
-}
-.art-empty-icon { font-size: 48px; opacity: 0.35; }
-.art-empty-text { font-family: var(--mono); font-size: 10px; letter-spacing: 3px; color: var(--muted); opacity: 0.7; }
-.art-spinner { width: 28px; height: 28px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.15); border-top-color: var(--accent); animation: spin 0.7s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
+.art-empty { width: 100%; aspect-ratio: 1; border-radius: 20px; background: var(--card-bg); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 12px; }
 
-/* Track info */
-.meta-row { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 16px; }
-.meta-text { flex: 1; min-width: 0; }
-.track-title { font-size: 20px; font-weight: 700; letter-spacing: -0.3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 3px; }
-.track-artist { font-size: 13px; color: var(--muted); font-weight: 300; }
-.meta-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; margin-left: 12px; }
-.devices-badge { display: flex; align-items: center; gap: 5px; font-family: var(--mono); font-size: 10px; color: var(--green); letter-spacing: 1px; }
-.dot-live { width: 6px; height: 6px; border-radius: 50%; background: var(--green); box-shadow: 0 0 7px var(--green); animation: blink 1.8s ease-in-out infinite; }
-@keyframes blink { 0%,100%{opacity:1}50%{opacity:0.25} }
+.controls { display: flex; align-items: center; justify-content: center; gap: 16px; margin-bottom: 20px; }
+.ctrl-btn { background: var(--glass); border: none; border-radius: 50%; width: 50px; height: 50px; color: var(--text); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; }
+.ctrl-btn:hover { background: var(--glass-hover); }
+.ctrl-btn.play { width: 64px; height: 64px; background: linear-gradient(135deg, var(--accent), var(--accent2)); color: white; }
 
-/* Progress */
-.prog-wrap { margin-bottom: 20px; }
-.prog-bar { width: 100%; height: 4px; background: rgba(255,255,255,0.12); border-radius: 2px; cursor: pointer; position: relative; margin-bottom: 8px; }
-body.light .prog-bar { background: rgba(0,0,0,0.12); }
-.prog-fill { height: 100%; border-radius: 2px; background: linear-gradient(90deg, var(--accent2), var(--accent)); width: 0%; transition: width 0.1s linear; position: relative; will-change: width; }
-.prog-fill::after { content: ''; position: absolute; right: -5px; top: 50%; transform: translateY(-50%); width: 12px; height: 12px; border-radius: 50%; background: var(--accent); opacity: 0; transition: opacity 0.15s; box-shadow: 0 0 8px var(--accent); }
-.prog-bar:hover .prog-fill::after { opacity: 1; }
-.time-row { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 10px; color: var(--muted); letter-spacing: 0.5px; }
+.prog-bar { width: 100%; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; cursor: pointer; margin-bottom: 8px; position: relative; }
+.prog-fill { height: 100%; background: var(--accent); border-radius: 2px; width: 0%; }
 
-/* Controls */
-.controls { display: flex; align-items: center; justify-content: center; gap: 0; margin-bottom: 20px; }
-.ctrl { background: none; border: none; cursor: pointer; padding: 10px; color: var(--muted); transition: all 0.15s; display: flex; align-items: center; justify-content: center; }
-.ctrl:hover { color: var(--text); transform: scale(1.12); }
-.ctrl svg { display: block; }
-.ctrl.play { width: 62px; height: 62px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff !important; box-shadow: 0 8px 28px rgba(201,107,255,0.4); margin: 0 16px; }
-.ctrl.play:hover { transform: scale(1.07) !important; box-shadow: 0 12px 36px rgba(201,107,255,0.55); }
-.ctrl.play svg { fill: #fff; }
-.ctrl-icon { fill: currentColor; }
-
-/* Mode indicator chip on host player */
-.source-chip {
-  display: inline-flex; align-items: center; gap: 6px;
-  background: var(--glass); border: 1px solid var(--border);
-  border-radius: 20px; padding: 5px 12px;
-  font-family: var(--mono); font-size: 9px; letter-spacing: 1.5px; color: var(--muted);
-  margin-bottom: 16px;
-}
-.source-chip.live { color: var(--green); border-color: rgba(30,215,96,0.3); background: rgba(30,215,96,0.07); }
-
-/* Rooms bar */
-.rooms-bar { display: flex; flex-wrap: wrap; gap: 8px; min-height: 36px; padding: 10px 14px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; align-items: center; }
-.room-tag { display: flex; align-items: center; gap: 6px; background: rgba(201,107,255,0.08); border: 1px solid rgba(201,107,255,0.2); border-radius: 20px; padding: 5px 12px; font-family: var(--mono); font-size: 10px; letter-spacing: 1px; animation: pop 0.2s ease; }
-@keyframes pop { from { opacity:0;transform:scale(0.8); } to { opacity:1;transform:scale(1); } }
-.no-rooms-txt { font-family: var(--mono); font-size: 9px; color: var(--muted); letter-spacing: 2px; }
-
-/* ── JOIN ── */
-.join-wrap { width: 100%; max-width: 340px; text-align: center; }
-.join-title { font-size: 30px; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 8px; }
-.join-sub { font-size: 13px; color: var(--muted); margin-bottom: 32px; font-weight: 300; }
-.code-field { width: 100%; background: var(--glass); backdrop-filter: blur(20px); border: 1px solid var(--border); border-radius: 18px; padding: 22px; color: var(--text); font-family: var(--mono); font-size: 30px; font-weight: 700; letter-spacing: 14px; text-align: center; text-transform: uppercase; outline: none; transition: border-color 0.2s; margin-bottom: 12px; }
-.code-field:focus { border-color: var(--accent); }
-
-/* ── GUEST PLAYER EXTRAS ── */
-.guest-live { display: flex; align-items: center; justify-content: center; gap: 8px; font-family: var(--mono); font-size: 9px; letter-spacing: 3px; color: var(--green); margin-bottom: 14px; }
-.guest-list-panel { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 10px 14px; margin-bottom: 16px; }
-.guest-list-header { font-family: var(--mono); font-size: 9px; letter-spacing: 2px; color: var(--muted); margin-bottom: 8px; }
-.guest-list-items { display: flex; flex-wrap: wrap; gap: 6px; min-height: 24px; }
-.guest-tag { display: flex; align-items: center; gap: 5px; background: rgba(30,215,96,0.08); border: 1px solid rgba(30,215,96,0.2); border-radius: 20px; padding: 4px 10px; font-family: var(--mono); font-size: 9px; letter-spacing: 1px; color: var(--green); animation: pop 0.2s ease; }
-.guest-tag.me { background: rgba(201,107,255,0.1); border-color: rgba(201,107,255,0.3); color: var(--accent); }
-
-/* Volume */
-.vol-row { display: flex; align-items: center; gap: 12px; padding: 12px 0; }
-.vol-icon { fill: var(--muted); flex-shrink: 0; }
-input[type=range] { flex: 1; -webkit-appearance: none; height: 3px; background: rgba(255,255,255,0.15); border-radius: 2px; outline: none; }
-input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--text); cursor: pointer; }
-body.light input[type=range] { background: rgba(0,0,0,0.15); }
-
-/* Status / reconnect */
-.status-line { text-align: center; font-family: var(--mono); font-size: 9px; letter-spacing: 2px; color: var(--muted); margin-top: 12px; }
-.status-line.ok { color: var(--green); }
-.status-line.err { color: var(--red); }
-.status-line.warn { color: var(--accent); }
-.reconnect-banner { display: none; background: rgba(255,79,106,0.12); border: 1px solid rgba(255,79,106,0.3); border-radius: 10px; padding: 10px 14px; margin-bottom: 12px; font-family: var(--mono); font-size: 9px; letter-spacing: 1.5px; color: var(--red); text-align: center; }
-.reconnect-banner.show { display: block; }
-.reconnect-banner.warn { background: rgba(201,107,255,0.1); border-color: rgba(201,107,255,0.3); color: var(--accent); }
-
-.btn-back { width: 100%; padding: 13px; border: 1px solid var(--border); border-radius: 12px; background: transparent; color: var(--muted); font-family: var(--sans); font-size: 13px; cursor: pointer; transition: all 0.2s; }
-.btn-back:hover { color: var(--text); border-color: rgba(255,255,255,0.25); }
-
-/* iframe notice */
-#iframe-notice { position: fixed; bottom: 0; left: 0; right: 0; z-index: 999; background: rgba(201,107,255,0.95); padding: 12px 20px; font-size: 12px; text-align: center; color: #fff; font-weight: 600; display: none; }
-
-/* Mobile */
-@media (max-width: 400px) {
-  .glass-card { padding: 20px 16px; }
-  .player-wrap, .setup-outer { max-width: 100%; }
-  .ctrl.play { width: 56px; height: 56px; }
-  .mode-tab { font-size: 11px; }
-}
+.status-line { text-align: center; font-family: var(--mono); font-size: 10px; color: var(--muted); margin-top: 12px; }
 </style>
 </head>
 <body>
 
 <div id="dyn-bg"></div>
 <div id="dyn-vignette"></div>
-<button class="theme-toggle" id="theme-btn" onclick="toggleTheme()" title="Toggle theme">🌙</button>
-<div id="iframe-notice">⚠ Tab audio capture requires opening this file directly in Chrome or Edge.</div>
-
-<div class="qr-overlay" id="qr-overlay" onclick="closeQR(event)">
-  <div class="qr-modal" onclick="event.stopPropagation()">
-    <h3>Join Room</h3>
-    <p>Scan this QR code with your other device's camera to join instantly.</p>
-    <div id="qr-container"></div>
-    <button class="btn-close-qr" onclick="closeQR(event)">Close</button>
-  </div>
-</div>
-
-<div class="how-overlay" id="how-overlay" onclick="closeHow(event)">
-  <div class="how-card" onclick="event.stopPropagation()">
-    <h3 class="how-title">How to Connect</h3>
-    <div class="how-list">
-      <div class="how-item">
-        <div class="how-idx">1</div>
-        <div class="how-text">
-          <h4>Connect to same WiFi</h4>
-          <p>Ensure your computer and other devices are on the same WiFi or hotspot.</p>
-        </div>
-      </div>
-      <div class="how-item">
-        <div class="how-idx">2</div>
-        <div class="how-text">
-          <h4>Scan or Enter Code</h4>
-          <p>Scan the Host's QR code with your camera or enter the 6-digit room code.</p>
-        </div>
-      </div>
-      <div class="how-item">
-        <div class="how-idx">3</div>
-        <div class="how-text">
-          <h4>Watch the Pulse</h4>
-          <p>Look for the pulsing dot. If they flash at the same time, you're perfectly synced!</p>
-        </div>
-      </div>
-    </div>
-    <button class="btn-fill ghost" style="width:100%" onclick="closeHow(event)">Got it</button>
-  </div>
-</div>
+<button class="theme-toggle" onclick="toggleTheme()">🌙</button>
 
 <!-- ══════════════════════════ LANDING -->
 <div class="screen active" id="s-land">
   <div class="land">
     <div class="land-eyebrow">◈ ROOMSYNC</div>
     <h1 class="land-title">Music.<br><em>Together.</em></h1>
-    <p class="land-sub">Play any music — Spotify, Apple Music,<br>YouTube, local files — to every device at once</p>
+    <p class="land-sub">Sync YouTube and local files across all devices instantly</p>
     <div class="land-btns">
-      <button class="btn-fill amber" onclick="goHost()">Host a Room</button>
+      <button class="btn-fill amber" onclick="showScreen('s-setup')">Host a Room</button>
       <button class="btn-fill ghost" onclick="showScreen('s-join')">Join a Room</button>
-      <button class="btn-back" style="border:none;background:none;font-size:11px;letter-spacing:1px;opacity:0.6;" onclick="showHow()">HOW TO CONNECT?</button>
     </div>
   </div>
 </div>
@@ -440,994 +177,277 @@ body.light input[type=range] { background: rgba(0,0,0,0.15); }
       <div class="setup-title">Start a Room</div>
       <div class="setup-sub">Choose your music source</div>
 
-      <!-- Mode tabs -->
       <div class="mode-tabs">
-        <button class="mode-tab active" id="tab-stream" onclick="switchMode('stream')">
-          <span class="tab-icon">📡</span>Stream App
-        </button>
-        <button class="mode-tab" id="tab-local" onclick="switchMode('local')">
-          <span class="tab-icon">🎵</span>Local Files
-        </button>
+        <button class="mode-tab active" id="tab-online" onclick="switchMode('online')">YouTube</button>
+        <button class="mode-tab" id="tab-local" onclick="switchMode('local')">Local Files</button>
       </div>
 
-      <!-- ── STREAM MODE ── -->
-      <div class="mode-panel active" id="panel-stream">
-        <div class="service-logos">
-          <!-- Spotify -->
-          <div class="svc-chip">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="#1DB954"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
-            Spotify
-          </div>
-          <!-- Apple Music -->
-          <div class="svc-chip">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="#FA243C"><path d="M23.994 6.124a9.23 9.23 0 00-.24-2.19c-.317-1.31-1.062-2.31-2.18-3.043a5.022 5.022 0 00-1.877-.726 10.496 10.496 0 00-1.564-.15c-.04-.003-.083-.01-.124-.013H5.986c-.152.01-.303.017-.455.026C4.786.07 4.043.15 3.34.428 2.1.958 1.22 1.88.517 3.062A6.302 6.302 0 00.23 4.5c-.054.27-.08.546-.09.82-.015.344-.02.69-.02 1.034v12.29c0 .546.022 1.09.11 1.63.29 1.68 1.157 2.98 2.6 3.85.57.34 1.19.56 1.84.67.48.082.97.12 1.46.13.244.006.49.01.736.01h12.14c.46 0 .92-.006 1.38-.03.47-.03.94-.08 1.4-.19 1.47-.35 2.65-1.14 3.46-2.4.48-.75.75-1.57.87-2.44.06-.44.09-.89.09-1.34V7.21c0-.36-.006-.716-.016-1.086zm-9.607 3.455v7.41c0 .47-.13.9-.43 1.27-.42.51-1.01.73-1.65.67-.94-.09-1.69-.89-1.74-1.83-.06-.99.62-1.88 1.59-2.08.43-.09.86-.1 1.3-.19.31-.06.52-.24.55-.56.01-.08.01-.16.01-.24V5.984c0-.5.26-.77.76-.68l3.51.69c.41.08.63.33.63.75v5.81c0 .56-.18.96-.71 1.17-.29.11-.59.19-.89.28l-.07.02c-.73.17-1.3-.1-1.62-.78-.09-.2-.13-.41-.13-.62-.01-1.03 0-2.06 0-3.09v-.44l-1.1-.2z"/></svg>
-            Apple Music
-          </div>
-          <!-- YouTube Music -->
-          <div class="svc-chip">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="#FF0000"><path d="M12 0C5.376 0 0 5.376 0 12s5.376 12 12 12 12-5.376 12-12S18.624 0 12 0zm0 19.104c-3.924 0-7.104-3.18-7.104-7.104S8.076 4.896 12 4.896s7.104 3.18 7.104 7.104-3.18 7.104-7.104 7.104zm0-13.332c-3.432 0-6.228 2.796-6.228 6.228S8.568 18.228 12 18.228s6.228-2.796 6.228-6.228S15.432 5.772 12 5.772zM9.684 15.54V8.46L15.816 12l-6.132 3.54z"/></svg>
-            YouTube
-          </div>
-          <!-- Other -->
-          <div class="svc-chip">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="color:var(--muted)"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
-            Any App
-          </div>
+      <div class="mode-panel active" id="panel-online">
+        <div class="input-box">
+          <input type="text" class="input-field" id="yt-url" placeholder="Paste YouTube Link...">
         </div>
-
-        <div class="how-to-box">
-          <div class="how-step">
-            <div class="how-num">1</div>
-            <div>Open <strong>Spotify, Apple Music, YouTube</strong> or any music app in another tab or window</div>
-          </div>
-          <div class="how-step">
-            <div class="how-num">2</div>
-            <div>Click <strong>Start Streaming</strong> below — a screen share dialog will appear</div>
-          </div>
-          <div class="how-step">
-            <div class="how-num">3</div>
-            <div>Select the music tab and make sure <strong>"Share audio"</strong> is ticked ✓</div>
-          </div>
-        </div>
-
-        <button class="big-btn" id="stream-big-btn" onclick="captureTabAudio()">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>
-          Start Streaming
-        </button>
-        <div class="stream-status" id="stream-status">Ready — guests will hear your music live</div>
+        <button class="btn-fill amber" style="width:100%" onclick="startWithYT()">Start Room</button>
       </div>
 
-      <!-- ── LOCAL FILES MODE ── -->
       <div class="mode-panel" id="panel-local">
-        <div class="drop-zone" id="drop-zone">
-          <input type="file" id="file-input" accept="audio/*" multiple onchange="handleFiles(this.files)">
-          <div class="drop-icon">🎵</div>
-          <div class="drop-title">Drop songs here</div>
-          <div class="drop-sub">or click to browse</div>
-          <div class="drop-formats">MP3 · AAC · FLAC · WAV · OGG</div>
+        <div class="drop-zone">
+          <input type="file" id="file-input" accept="audio/*" onchange="handleFile(this.files[0])">
+          <div>Click to choose a song</div>
         </div>
-
-        <div class="local-playlist" id="local-playlist" style="display:none"></div>
-
-        <button class="big-btn" id="local-play-btn" style="display:none" onclick="toggleLocalPlay()">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" id="local-play-svg"><path d="M8 5v14l11-7z"/></svg>
-          Play & Stream
-        </button>
-        <div class="stream-status" id="local-status" style="display:none"></div>
+        <button class="btn-fill amber" id="local-start-btn" style="width:100%; display:none" onclick="startWithLocal()">Start Room</button>
       </div>
 
-      <button class="btn-back" style="margin-top:10px" onclick="showScreen('s-land')">← Back</button>
-      <div class="status-line" id="setup-status"></div>
+      <button class="btn-back" style="width:100%; margin-top:10px; background:none; border:none; color:var(--muted); cursor:pointer" onclick="showScreen('s-land')">← Back</button>
     </div>
   </div>
 </div>
 
 <!-- ══════════════════════════ JOIN -->
 <div class="screen" id="s-join">
-  <div class="join-wrap">
-    <h2 class="join-title">Join a Room</h2>
-    <p class="join-sub">Enter the code your host shared with you</p>
-    <input class="code-field" id="join-code" type="text" maxlength="6" placeholder="XXXXXX"
-      oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'')"
-      onkeydown="if(event.key==='Enter')doJoin()">
-    <button class="btn-fill amber" style="width:100%;margin-bottom:10px" onclick="doJoin()">Join →</button>
-    <button class="btn-back" onclick="showScreen('s-land')">← Back</button>
-    <button class="btn-back" style="border:none;background:none;font-size:10px;margin-top:12px;opacity:0.6;" onclick="showHow()">NEED HELP CONNECTING?</button>
+  <div class="join-wrap" style="text-align:center">
+    <h2 style="margin-bottom:10px">Join a Room</h2>
+    <input class="input-field" id="join-code" type="text" maxlength="6" style="text-align:center; font-size:24px; margin-bottom:20px" placeholder="CODE">
+    <button class="btn-fill amber" style="width:100%" onclick="doJoin()">Join Room</button>
+    <button class="btn-back" style="margin-top:20px; display:block; width:100%; background:none; border:none; color:var(--muted); cursor:pointer" onclick="showScreen('s-land')">← Back</button>
     <div class="status-line" id="join-status"></div>
   </div>
 </div>
 
-<!-- ══════════════════════════ HOST PLAYER -->
-<div class="screen" id="s-host">
+<!-- ══════════════════════════ PLAYER (HOST/GUEST) -->
+<div class="screen" id="s-player">
   <div class="player-wrap">
     <div class="top-bar">
-      <div class="top-wordmark">ROOMSYNC</div>
-      <div style="display:flex; gap: 8px;">
-        <div class="code-pill" onclick="showHow()" title="How to connect">
-          <span style="font-size:14px">❓</span>
-        </div>
-        <div class="code-pill" onclick="showQR()">
-          <span style="font-size:14px">📷</span>
-        </div>
-        <div class="code-pill" id="h-code-pill" onclick="copyRoomCode()">
-          <span class="copy-tooltip">COPIED!</span><span id="h-code-text">——</span>
-        </div>
+      <div style="font-size:10px; letter-spacing:2px">ROOMSYNC</div>
+      <div class="code-pill" id="room-code-display">------</div>
+    </div>
+
+    <div id="yt-player-container">
+      <div id="yt-player"></div>
+    </div>
+
+    <div id="local-art" class="art-wrap">
+      <div class="art-empty">
+        <div style="font-size:40px">🎵</div>
+        <div id="track-name" style="font-size:14px; font-weight:700">Not Playing</div>
       </div>
     </div>
 
-    <div class="source-chip" id="h-source-chip">
-      <div class="dot-live"></div><span id="h-source-label">STREAMING</span>
-      <div class="sync-pulse" style="margin-left: 10px; opacity: 0.6;"></div>
+    <div class="prog-bar" id="prog-bar" onclick="handleSeek(event)">
+      <div class="prog-fill" id="prog-fill"></div>
+    </div>
+    <div style="display:flex; justify-content:space-between; font-size:10px; color:var(--muted); margin-bottom:20px">
+      <span id="curr-time">0:00</span>
+      <span id="total-time">0:00</span>
     </div>
 
-    <!-- Art -->
-    <div class="art-wrap">
-      <img id="h-art" class="art-img" crossorigin="anonymous">
-      <div id="h-art-empty" class="art-empty">
-        <div class="art-empty-icon" id="h-art-icon">📡</div>
-        <div class="art-empty-text" id="h-art-msg">WAITING FOR AUDIO</div>
-      </div>
-    </div>
-
-    <!-- Meta -->
-    <div class="meta-row">
-      <div class="meta-text">
-        <div class="track-title" id="h-title">Not playing</div>
-        <div class="track-artist" id="h-artist">Start music in your streaming app</div>
-      </div>
-      <div class="meta-right">
-        <div class="devices-badge">
-          <div class="dot-live"></div>
-          <span id="h-device-count">0</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Progress (only for local files) -->
-    <div class="prog-wrap" id="h-prog-wrap">
-      <div class="prog-bar" id="h-prog-bar" onclick="seekLocal(event)">
-        <div class="prog-fill" id="h-prog-fill"></div>
-      </div>
-      <div class="time-row">
-        <span id="h-curr">0:00</span>
-        <span id="h-dur">0:00</span>
-      </div>
-    </div>
-
-    <!-- Controls (only for local files) -->
-    <div class="controls" id="h-controls">
-      <button class="ctrl" onclick="localPrev()" title="Previous">
-        <svg width="26" height="26" viewBox="0 0 24 24"><path class="ctrl-icon" d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
-      </button>
-      <button class="ctrl play" id="h-play-btn" onclick="toggleLocalPlay()">
-        <svg width="28" height="28" viewBox="0 0 24 24" id="h-play-svg" fill="white"><path d="M8 5v14l11-7z"/></svg>
-      </button>
-      <button class="ctrl" onclick="localNext()" title="Next">
-        <svg width="26" height="26" viewBox="0 0 24 24"><path class="ctrl-icon" d="M6 18l8.5-6L6 6v12zm2-8.14L11.03 12 8 14.14V9.86zM16 6h2v12h-2z"/></svg>
+    <div class="controls">
+      <button class="ctrl-btn play" id="play-btn" onclick="togglePlay()">
+        <span id="play-icon">▶</span>
       </button>
     </div>
 
-    <!-- Rooms -->
-    <div class="rooms-bar" id="h-rooms">
-      <div class="no-rooms-txt">WAITING FOR DEVICES...</div>
-    </div>
-    <div class="status-line" id="h-status"></div>
-    <div class="reconnect-banner" id="h-reconnect-banner"></div>
+    <div class="status-line" id="player-status">Connected</div>
+    <button class="btn-back" style="width:100%; margin-top:20px; background:none; border:none; color:var(--muted); cursor:pointer" onclick="location.reload()">Leave Room</button>
   </div>
 </div>
 
-<!-- ══════════════════════════ GUEST PLAYER -->
-<div class="screen" id="s-guest">
-  <div class="player-wrap">
-    <div class="top-bar">
-      <div class="top-wordmark">ROOMSYNC</div>
-      <div style="display:flex; gap: 8px; align-items: center;">
-        <div class="sync-pulse" id="g-sync-pulse" style="opacity: 0.8;"></div>
-        <div class="code-pill" id="g-code-pill" style="color:var(--green);border-color:rgba(30,215,96,0.3);background:rgba(30,215,96,0.07)">——</div>
-      </div>
-    </div>
-
-    <div class="guest-live"><div class="dot-live"></div>LIVE FROM HOST</div>
-    <div class="reconnect-banner" id="g-reconnect-banner"></div>
-
-    <!-- Guest list -->
-    <div class="guest-list-panel">
-      <div class="guest-list-header">IN THIS ROOM</div>
-      <div class="guest-list-items" id="g-guest-list">
-        <div class="guest-tag me"><div class="dot-live"></div>YOU</div>
-      </div>
-    </div>
-
-    <!-- Art -->
-    <div class="art-wrap">
-      <img id="g-art" class="art-img" crossorigin="anonymous">
-      <div id="g-art-empty" class="art-empty">
-        <div class="art-spinner"></div>
-        <div class="art-empty-text">WAITING FOR HOST</div>
-      </div>
-    </div>
-
-    <!-- Meta -->
-    <div class="meta-row">
-      <div class="meta-text">
-        <div class="track-title" id="g-title">Waiting...</div>
-        <div class="track-artist" id="g-artist">Host hasn't started yet</div>
-      </div>
-    </div>
-
-    <!-- Progress (read-only) -->
-    <div class="prog-wrap">
-      <div class="prog-bar" style="cursor:default">
-        <div class="prog-fill" id="g-prog-fill"></div>
-      </div>
-      <div class="time-row"><span id="g-curr">0:00</span><span id="g-dur">0:00</span></div>
-    </div>
-
-    <!-- Controls (display only) -->
-    <div class="controls" style="opacity:0.3;pointer-events:none;">
-      <button class="ctrl"><svg width="26" height="26" viewBox="0 0 24 24"><path class="ctrl-icon" d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg></button>
-      <button class="ctrl play"><svg width="28" height="28" viewBox="0 0 24 24" id="g-play-svg" fill="white"><path d="M8 5v14l11-7z"/></svg></button>
-      <button class="ctrl"><svg width="26" height="26" viewBox="0 0 24 24"><path class="ctrl-icon" d="M6 18l8.5-6L6 6v12zm2-8.14L11.03 12 8 14.14V9.86zM16 6h2v12h-2z"/></svg></button>
-    </div>
-
-    <!-- Volume -->
-    <div class="vol-row">
-      <svg class="vol-icon" width="18" height="18" viewBox="0 0 24 24"><path d="M18.5 12c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM5 9v6h4l5 5V4L9 9H5zm7-.17v6.34L9.83 13H7v-2h2.83L12 8.83z"/></svg>
-      <input type="range" min="0" max="100" value="80" oninput="audioG.volume=this.value/100">
-      <svg class="vol-icon" width="18" height="18" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
-    </div>
-
-    <!-- Sync Offset -->
-    <div style="margin-top: 10px; display: flex; align-items: center; gap: 10px; font-family: var(--mono); font-size: 10px; color: var(--muted);">
-      <span>Sync Offset:</span>
-      <input type="range" min="-500" max="500" value="0" id="sync-offset" oninput="updateSyncOffset(this.value)">
-      <span id="sync-offset-val">0ms</span>
-    </div>
-
-    <div class="status-line ok" id="g-status">● Connected</div>
-  </div>
-</div>
-
-<audio id="audio-local" style="display:none"></audio>
-<audio id="audio-g" autoplay style="display:none"></audio>
+<audio id="audio-el" style="display:none"></audio>
 
 <script>
-// ═══════════════════════════════════════
-//  UTILITIES: Base44 & Crypto
-// ═══════════════════════════════════════
-const B44_CHARSET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnp"; // 44 chars (no 0,1,I,l,O,o)
+let peer = null, conn = null, connections = [];
+let isHost = false, roomCode = "";
+let ytPlayer = null, currentMode = 'online'; // 'online' or 'local'
+let audioEl = document.getElementById('audio-el');
+let localFileBlob = null;
+let syncInterval = null;
 
-const Base44 = {
-  encode: (num) => {
-    if (num === 0) return B44_CHARSET[0];
-    let res = "";
-    while (num > 0) {
-      res = B44_CHARSET[num % 44] + res;
-      num = Math.floor(num / 44);
-    }
-    return res;
-  },
-  decode: (str) => {
-    let res = 0;
-    for (let i = 0; i < str.length; i++) {
-      let idx = B44_CHARSET.indexOf(str[i]);
-      if (idx === -1) return 0;
-      res = res * 44 + idx;
-    }
-    return res;
-  }
-};
-
-const CryptoUtil = {
-  key: null,
-  async init() {
-    // AES-GCM requires a 128, 192, or 256-bit key (16, 24, or 32 bytes)
-    // "roomsync-secret-key-32-chars-long" is exactly 32 bytes
-    const rawKey = new TextEncoder().encode("roomsync-secret-key-32-chars-now"); 
-    this.key = await crypto.subtle.importKey(
-      "raw", rawKey, { name: "AES-GCM" }, false, ["encrypt", "decrypt"]
-    );
-  },
-  async encrypt(text) {
-    if (!this.key) await this.init();
-    const iv = crypto.getRandomValues(new Uint8Array(12));
-    const encoded = new TextEncoder().encode(text);
-    const encrypted = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, this.key, encoded);
-    const combined = new Uint8Array(iv.length + encrypted.byteLength);
-    combined.set(iv);
-    combined.set(new Uint8Array(encrypted), iv.length);
-    return btoa(String.fromCharCode(...combined)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-  },
-  async decrypt(token) {
-    if (!this.key) await this.init();
-    try {
-      const combined = new Uint8Array(atob(token.replace(/-/g, '+').replace(/_/g, '/')).split('').map(c => c.charCodeAt(0)));
-      const iv = combined.slice(0, 12);
-      const data = combined.slice(12);
-      const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, this.key, data);
-      return new TextDecoder().decode(decrypted);
-    } catch (e) { return null; }
-  }
-};
-
-// ═══════════════════════════════════════
-//  GLOBALS
-// ═══════════════════════════════════════
-let peer = null, connections = [], activeCalls = [], hostConn = null;
-let mediaStream = null, localStream = null, pollInterval = null;
-let guestCount = 0, roomCode = null, lastTrack = null;
-let myGuestId = null, guestRoster = [];
-let reconnectAttempts = 0, reconnectTimer = null;
-let syncOffset = 0; // ms
-let serverTimeOffset = 0; // ms
-const MAX_RECONNECT = 5;
-
-// Local file player state
-let localFiles = [], localIndex = 0, localPlaying = false, localProgTimer = null;
-const audioL = document.getElementById('audio-local');
-const audioG = document.getElementById('audio-g');
-const fmt = s => { if (!s || isNaN(s) || s < 0) return '0:00'; return `${Math.floor(s/60)}:${Math.floor(s%60).toString().padStart(2,'0')}`; };
-
-let hostMode = 'stream'; // 'stream' | 'local'
-
-// ═══════════════════════════════════════
-//  BOOT
-// ═══════════════════════════════════════
-window.addEventListener('load', async () => {
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js').catch(console.error);
-  }
-  if (window.self !== window.top) document.getElementById('iframe-notice').style.display = 'block';
-  await CryptoUtil.init();
-  applyTheme();
-  // Check for room in URL
-  const urlParams = new URLSearchParams(window.location.search);
-  const r = urlParams.get('room');
-  if (r) {
-    document.getElementById('join-code').value = r.toUpperCase();
-    showScreen('s-join');
-  }
-  // Start the pulse sync loop
-  startPulseSync();
-  // Hide progress/controls on host screen initially
-  document.getElementById('h-prog-wrap').style.display = 'none';
-  document.getElementById('h-controls').style.display = 'none';
-});
-
-// ═══════════════════════════════════════
-//  QR CODE HELPERS
-// ═══════════════════════════════════════
-let qrcode = null;
-function showQR() {
-  const container = document.getElementById('qr-container');
-  container.innerHTML = '';
-  const joinUrl = `${window.location.origin}${window.location.pathname}?room=${roomCode}`;
-  
-  qrcode = new QRCode(container, {
-    text: joinUrl,
-    width: 200,
-    height: 200,
-    colorDark : "#000000",
-    colorLight : "#ffffff",
-    correctLevel : QRCode.CorrectLevel.H
+// Initialize YouTube API
+function onYouTubeIframeAPIReady() {
+  ytPlayer = new YT.Player('yt-player', {
+    height: '100%',
+    width: '100%',
+    playerVars: { 'autoplay': 0, 'controls': 0, 'disablekb': 1 },
+    events: { 'onStateChange': onPlayerStateChange }
   });
-  
-  document.getElementById('qr-overlay').classList.add('active');
 }
 
-function closeQR(e) {
-  document.getElementById('qr-overlay').classList.remove('active');
-}
-
-function showHow() {
-  document.getElementById('how-overlay').classList.add('active');
-}
-
-function closeHow(e) {
-  document.getElementById('how-overlay').classList.remove('active');
-}
-
-// ═══════════════════════════════════════
-//  PULSE SYNC
-// ═══════════════════════════════════════
-function startPulseSync() {
-  // We want a pulse every 2 seconds, synchronized to Unix time
-  const updateDelay = () => {
-    const now = Date.now() + serverTimeOffset;
-    const delay = -(now % 2000) / 1000; // Negative delay to start mid-animation
-    const pulses = document.querySelectorAll('.sync-pulse');
-    pulses.forEach(p => {
-      p.style.setProperty('--pulse-delay', delay + 's');
-    });
-  };
-  
-  updateDelay();
-  // Update occasionally to account for drift or serverTimeOffset changes
-  setInterval(updateDelay, 5000);
-}
-
-// ═══════════════════════════════════════
-//  THEME
-// ═══════════════════════════════════════
-function toggleTheme() {
-  const isLight = document.body.classList.toggle('light');
-  document.getElementById('theme-btn').textContent = isLight ? '☀️' : '🌙';
-  localStorage.setItem('rs_theme', isLight ? 'light' : 'dark');
-}
-function applyTheme() {
-  if (localStorage.getItem('rs_theme') === 'light') {
-    document.body.classList.add('light');
-    document.getElementById('theme-btn').textContent = '☀️';
+function onPlayerStateChange(event) {
+  if (isHost) {
+    broadcast({ t: 'state', s: event.data, time: ytPlayer.getCurrentTime() });
   }
 }
 
-// ═══════════════════════════════════════
-//  SYNC HELPERS
-// ═══════════════════════════════════════
-function updateSyncOffset(val) {
-  syncOffset = parseInt(val);
-  document.getElementById('sync-offset-val').textContent = (syncOffset > 0 ? '+' : '') + syncOffset + 'ms';
-  // Note: Local WebRTC streams have some inherent latency, this allows user to adjust it.
-}
-
-function handleSync(hostTime, guestSentTime) {
-  const roundTrip = Date.now() - guestSentTime;
-  const currentOffset = hostTime - (Date.now() - roundTrip / 2);
-  serverTimeOffset = (serverTimeOffset * 0.9) + (currentOffset * 0.1); // Moving average
-}
-
-// ═══════════════════════════════════════
-//  NAV
-// ═══════════════════════════════════════
+// Logic
 function showScreen(id) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.toggle('active', s.id === id));
-}
-
-function goHost() {
-  showScreen('s-setup');
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
 }
 
 function switchMode(mode) {
-  hostMode = mode;
-  document.getElementById('tab-stream').classList.toggle('active', mode === 'stream');
+  currentMode = mode;
+  document.getElementById('tab-online').classList.toggle('active', mode === 'online');
   document.getElementById('tab-local').classList.toggle('active', mode === 'local');
-  document.getElementById('panel-stream').classList.toggle('active', mode === 'stream');
+  document.getElementById('panel-online').classList.toggle('active', mode === 'online');
   document.getElementById('panel-local').classList.toggle('active', mode === 'local');
 }
 
-// ═══════════════════════════════════════
-//  PEER CONFIG (Local signaling support)
-// ═══════════════════════════════════════
-function getPeerConfig() {
-  const isLocal = window.location.hostname === 'localhost' || 
-                  window.location.hostname === '127.0.0.1' || 
-                  window.location.hostname.startsWith('192.168.') ||
-                  window.location.hostname.startsWith('10.');
+// Host Logic
+async function startWithYT() {
+  const url = document.getElementById('yt-url').value;
+  const videoId = extractVideoId(url);
+  if (!videoId) return alert("Invalid YouTube URL");
   
-  if (isLocal && window.location.port === '3000') {
-    return {
-      host: window.location.hostname,
-      port: 3000,
-      path: '/peerjs',
-      debug: 1
-    };
-  }
-  return { debug: 1 };
+  isHost = true;
+  await initPeer();
+  showScreen('s-player');
+  document.getElementById('yt-player-container').classList.add('active');
+  document.getElementById('local-art').style.display = 'none';
+
+  ytPlayer.loadVideoById(videoId);
+  startSyncLoop();
 }
 
-// ═══════════════════════════════════════
-//  HOST ROOM INIT
-// ═══════════════════════════════════════
-const genCode = () => {
-  // Generate a random numeric ID and encode it to Base44
-  const numId = Math.floor(Math.random() * 1000000000);
-  return Base44.encode(numId).toUpperCase().padStart(6, B44_CHARSET[0]);
-};
+function handleFile(file) {
+  if (!file) return;
+  localFileBlob = file;
+  document.getElementById('local-start-btn').style.display = 'block';
+  document.getElementById('track-name').textContent = file.name;
+}
 
-// Token management
-const generateToken = async (guestId) => {
-  const payload = JSON.stringify({
-    id: guestId,
-    room: roomCode,
-    exp: Date.now() + (24 * 60 * 60 * 1000) // 24 hour expiration
-  });
-  return await CryptoUtil.encrypt(payload);
-};
+async function startWithLocal() {
+  isHost = true;
+  await initPeer();
+  showScreen('s-player');
+  document.getElementById('yt-player-container').classList.remove('active');
+  document.getElementById('local-art').style.display = 'block';
 
-const verifyToken = async (token, guestId) => {
-  const decrypted = await CryptoUtil.decrypt(token);
-  if (!decrypted) return false;
-  try {
-    const data = JSON.parse(decrypted);
-    return data.id === guestId && data.room === roomCode && data.exp > Date.now();
-  } catch (e) { return false; }
-};
+  const url = URL.createObjectURL(localFileBlob);
+  audioEl.src = url;
+  startSyncLoop();
+}
 
-function initHost() {
-  return new Promise((resolve, reject) => {
-    if (!roomCode) roomCode = genCode();
-    const config = getPeerConfig();
-    peer = new Peer('RS4-' + roomCode, config);
+async function initPeer() {
+  roomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+  peer = new Peer('RS-' + roomCode);
+
+  return new Promise(resolve => {
     peer.on('open', () => {
-      document.getElementById('h-code-text').textContent = roomCode;
-      updateRooms();
+      document.getElementById('room-code-display').textContent = roomCode;
       resolve();
     });
-    peer.on('connection', conn => {
-      // Temporary connection to verify token
-      conn.on('data', async (msg) => {
-        if (msg.t === 'auth') {
-          const isValid = await verifyToken(msg.token, msg.id);
-          if (isValid || !msg.token) { // Allow initial join to get token
-            if (!msg.token) {
-              const newToken = await generateToken(msg.id);
-              conn.send({ t: 'auth_success', token: newToken });
-            }
-            setupAuthorizedGuest(conn);
-          } else {
-            conn.send({ t: 'auth_fail', reason: 'Invalid or expired token' });
-            setTimeout(() => conn.close(), 1000);
-          }
+
+    peer.on('connection', c => {
+      connections.push(c);
+      c.on('open', () => {
+        // Send initial state to guest
+        if (currentMode === 'online') {
+          c.send({ t: 'init', mode: 'online', v: ytPlayer.getVideoData().video_id });
+        } else {
+          c.send({ t: 'init', mode: 'local', name: localFileBlob.name, file: localFileBlob });
         }
       });
     });
-    peer.on('error', e => {
-      if (e.type === 'unavailable-id') { roomCode = genCode(); resolve(initHost()); }
-      else reject(new Error(e.type));
-    });
   });
 }
 
-function setupAuthorizedGuest(conn) {
-  guestCount++;
-  conn._tag = 'GUEST ' + String(guestCount).padStart(2,'0');
-  conn._id = 'g' + guestCount;
-  connections.push(conn);
-  
-  updateRooms();
-  broadcastRoster();
-  
-  if (lastTrack) conn.send({ t: 'track', d: lastTrack });
-  conn.send({ t: 'roster', guests: getRosterList(), myId: conn._id });
-  
-  // Call new guest with active stream
-  const stream = mediaStream || localStream;
-  if (stream && conn.open) {
-    const c = peer.call(conn.peer, stream);
-    if (c) activeCalls.push(c);
-  }
-
-  conn.on('close', () => { 
-    connections = connections.filter(c => c !== conn); 
-    updateRooms(); 
-    broadcastRoster(); 
-  });
-  conn.on('error', () => { 
-    connections = connections.filter(c => c !== conn); 
-    updateRooms(); 
-    broadcastRoster(); 
-  });
-}
-
-function removeGuest(guestId) {
-  const conn = connections.find(c => c._id === guestId);
-  if (conn) {
-    conn.send({ t: 'kick', reason: 'Removed by host' });
-    setTimeout(() => conn.close(), 500);
-  }
-}
-
-function getRosterList() { return connections.map(c => ({ id: c._id, tag: c._tag })); }
-function broadcastRoster() {
-  const roster = getRosterList();
-  connections.forEach(c => { try { c.send({ t: 'roster', guests: roster, myId: c._id }); } catch(e){} });
-}
-function bcast(msg) { connections.forEach(c => { try { c.send(msg); } catch(e){} }); }
-
-function updateRooms() {
-  const rooms = document.getElementById('h-rooms');
-  document.getElementById('h-device-count').textContent = connections.length;
-  rooms.innerHTML = connections.length
-    ? connections.map(c => `<div class="room-tag">
-        <div class="dot-live"></div>${c._tag}
-        <button onclick="removeGuest('${c._id}')" style="background:none;border:none;color:var(--red);cursor:pointer;padding:0 4px;font-size:12px;display:flex;align-items:center;">✕</button>
-      </div>`).join('')
-    : '<div class="no-rooms-txt">WAITING FOR DEVICES...</div>';
-}
-
-// ═══════════════════════════════════════
-//  START HOST (from setup)
-// ═══════════════════════════════════════
-async function startHostAndGo() {
-  setStatus('setup-status', 'Creating room…', 'warn');
-  try {
-    roomCode = null;
-    await initHost();
-    if (hostMode === 'stream') {
-      document.getElementById('h-source-chip').className = 'source-chip live';
-      document.getElementById('h-source-label').textContent = 'TAB STREAMING';
-      document.getElementById('h-art-icon').textContent = '📡';
-      document.getElementById('h-art-msg').textContent = 'WAITING FOR AUDIO';
-      document.getElementById('h-prog-wrap').style.display = 'none';
-      document.getElementById('h-controls').style.display = 'none';
-      document.getElementById('h-artist').textContent = 'Streaming from tab — guests are connected';
-    } else {
-      document.getElementById('h-source-chip').className = 'source-chip';
-      document.getElementById('h-source-label').textContent = 'LOCAL FILES';
-      document.getElementById('h-art-icon').textContent = '🎵';
-      document.getElementById('h-art-msg').textContent = 'SELECT A SONG';
-      document.getElementById('h-prog-wrap').style.display = 'block';
-      document.getElementById('h-controls').style.display = 'flex';
-      document.getElementById('h-artist').textContent = 'Choose a track to start';
-    }
-    showScreen('s-host');
-  } catch(e) {
-    setStatus('setup-status', 'Error: ' + e.message, 'err');
-  }
-}
-
-// ═══════════════════════════════════════
-//  TAB AUDIO CAPTURE
-// ═══════════════════════════════════════
-async function captureTabAudio() {
-  const btn = document.getElementById('stream-big-btn');
-  const status = document.getElementById('stream-status');
-
-  // If already streaming, stop
-  if (mediaStream) {
-    mediaStream.getTracks().forEach(t => t.stop());
-    mediaStream = null;
-    btn.classList.remove('on');
-    btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg> Start Streaming`;
-    status.textContent = 'Stopped — click to stream again';
-    return;
-  }
-
-  try {
-    const display = await navigator.mediaDevices.getDisplayMedia({
-      video: { width:1, height:1, frameRate:1 },
-      audio: { echoCancellation: false, noiseSuppression: false, sampleRate: 44100 }
-    });
-    display.getVideoTracks().forEach(t => t.stop());
-    const audioTracks = display.getAudioTracks();
-
-    if (!audioTracks.length) {
-      status.style.color = 'var(--red)';
-      status.textContent = '⚠ No audio captured — tick "Share audio" in the dialog';
-      return;
-    }
-
-    mediaStream = new MediaStream(audioTracks);
-    btn.classList.add('on');
-    btn.innerHTML = `<svg width="10" height="10" viewBox="0 0 10 10"><circle cx="5" cy="5" r="5" fill="white"/></svg> Streaming Live — Click to Stop`;
-    status.style.color = 'var(--green)';
-    status.textContent = '● Audio is live — all guests are hearing your music';
-
-    // Launch host room and go
-    await startHostAndGo();
-
-    // Call all connected guests
-    callAllGuests(mediaStream);
-
-    audioTracks[0].addEventListener('ended', () => {
-      mediaStream = null;
-      btn.classList.remove('on');
-      btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg> Start Streaming`;
-      status.style.color = '';
-      status.textContent = 'Stream ended — click to restart';
-      setStatus('h-status', 'Stream ended — use Back to restart', 'warn');
-    });
-
-  } catch(e) {
-    if (e.name !== 'NotAllowedError') {
-      status.style.color = 'var(--red)';
-      status.textContent = 'Error: ' + e.message;
-    }
-  }
-}
-
-function callAllGuests(stream) {
-  activeCalls.forEach(c => { try { c.close(); } catch(e){} });
-  activeCalls = [];
-  connections.forEach(conn => {
-    if (conn.open) { const c = peer.call(conn.peer, stream); if (c) activeCalls.push(c); }
-  });
-}
-
-// ═══════════════════════════════════════
-//  LOCAL FILE PLAYER
-// ═══════════════════════════════════════
-function handleFiles(files) {
-  if (!files.length) return;
-  const newFiles = Array.from(files).filter(f => f.type.startsWith('audio/'));
-  if (!newFiles.length) return;
-  localFiles = [...localFiles, ...newFiles];
-  renderPlaylist();
-  document.getElementById('local-play-btn').style.display = 'flex';
-  document.getElementById('local-status').style.display = 'block';
-  document.getElementById('local-status').textContent = `${localFiles.length} song${localFiles.length!==1?'s':''} loaded`;
-  // Auto-start host room setup once files added
-  if (localFiles.length === newFiles.length) {
-    // First load
-    loadLocalTrack(0);
-  }
-}
-
-// Drag & drop
-const dropZone = document.getElementById('drop-zone');
-dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
-dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
-dropZone.addEventListener('drop', e => {
-  e.preventDefault();
-  dropZone.classList.remove('drag-over');
-  handleFiles(e.dataTransfer.files);
-});
-
-function renderPlaylist() {
-  const pl = document.getElementById('local-playlist');
-  pl.style.display = localFiles.length ? 'flex' : 'none';
-  pl.innerHTML = localFiles.map((f, i) => {
-    const name = f.name.replace(/\.[^/.]+$/, '');
-    return `<div class="playlist-item${i===localIndex?' playing':''}" onclick="loadLocalTrack(${i})">
-      <span class="pl-num">${i===localIndex?'▶':i+1}</span>
-      <span class="pl-name" title="${name}">${name}</span>
-    </div>`;
-  }).join('');
-}
-
-function loadLocalTrack(idx) {
-  if (idx < 0 || idx >= localFiles.length) return;
-  localIndex = idx;
-  const file = localFiles[idx];
-  const url = URL.createObjectURL(file);
-  audioL.src = url;
-  audioL.load();
-
-  // Broadcast track info
-  const name = file.name.replace(/\.[^/.]+$/, '');
-  const parts = name.split(' - ');
-  const track = {
-    title: parts.length >= 2 ? parts.slice(1).join(' - ') : name,
-    artist: parts.length >= 2 ? parts[0] : 'Local File',
-    art: '', progress: 0, duration: 0, playing: false
-  };
-  updateHostLocalUI(track);
-  bcast({ t: 'track', d: track });
-  lastTrack = track;
-  renderPlaylist();
-
-  if (localPlaying) { audioL.play().catch(()=>{}); }
-
-  audioL.onloadedmetadata = () => {
-    track.duration = audioL.duration * 1000;
-    lastTrack = track;
-    bcast({ t: 'track', d: track });
-    startLocalProg();
-  };
-  audioL.onended = () => { localNext(); };
-}
-
-function updateHostLocalUI(t) {
-  document.getElementById('h-title').textContent = t.title;
-  document.getElementById('h-artist').textContent = t.artist;
-  document.getElementById('h-play-svg').innerHTML = localPlaying
-    ? '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>'
-    : '<path d="M8 5v14l11-7z"/>';
-}
-
-function toggleLocalPlay() {
-  if (!localFiles.length) return;
-  localPlaying = !localPlaying;
-  if (localPlaying) {
-    audioL.play().then(() => {
-      // Start host room + stream local audio
-      if (!peer) startLocalStream();
-    }).catch(()=>{});
-  } else {
-    audioL.pause();
-  }
-  document.getElementById('h-play-svg').innerHTML = localPlaying
-    ? '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>'
-    : '<path d="M8 5v14l11-7z"/>';
-  document.getElementById('local-play-svg').innerHTML = localPlaying
-    ? '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>'
-    : '<path d="M8 5v14l11-7z"/>';
-  // Keep button label also updated on setup screen
-  const setupBtn = document.getElementById('local-play-btn');
-  if (setupBtn) setupBtn.querySelector('svg').innerHTML = localPlaying
-    ? '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>'
-    : '<path d="M8 5v14l11-7z"/>';
-}
-
-async function startLocalStream() {
-  try {
-    // Capture audio output from the local audio element via AudioContext
-    const ctx = new AudioContext();
-    const source = ctx.createMediaElementSource(audioL);
-    const dest = ctx.createMediaStreamDestination();
-    source.connect(dest);
-    source.connect(ctx.destination); // also play locally
-    localStream = dest.stream;
-
-    await startHostAndGo();
-    callAllGuests(localStream);
-  } catch(e) {
-    setStatus('setup-status', 'Audio error: ' + e.message, 'err');
-  }
-}
-
-function startLocalProg() {
-  clearInterval(localProgTimer);
-  localProgTimer = setInterval(() => {
-    if (!audioL.duration) return;
-    const p = audioL.currentTime * 1000;
-    const dur = audioL.duration * 1000;
-    const pct = (p / dur) * 100;
-    document.getElementById('h-prog-fill').style.width = pct + '%';
-    document.getElementById('h-curr').textContent = fmt(audioL.currentTime);
-    document.getElementById('h-dur').textContent = fmt(audioL.duration);
-    bcast({ t: 'prog', p, dur, playing: !audioL.paused });
-  }, 500);
-}
-
-function seekLocal(e) {
-  if (!audioL.duration) return;
-  const bar = document.getElementById('h-prog-bar');
-  const pct = Math.max(0, Math.min(1, (e.clientX - bar.getBoundingClientRect().left) / bar.offsetWidth));
-  audioL.currentTime = pct * audioL.duration;
-}
-
-function localNext() {
-  if (localIndex < localFiles.length - 1) loadLocalTrack(localIndex + 1);
-  else { localPlaying = false; updateHostLocalUI(lastTrack || {}); }
-}
-function localPrev() {
-  if (audioL.currentTime > 3) { audioL.currentTime = 0; }
-  else if (localIndex > 0) loadLocalTrack(localIndex - 1);
-}
-
-// ═══════════════════════════════════════
-//  COPY ROOM CODE
-// ═══════════════════════════════════════
-function copyRoomCode() {
-  const pill = document.getElementById('h-code-pill');
-  const doCopy = () => {
-    pill.classList.add('copied');
-    setTimeout(() => pill.classList.remove('copied'), 1400);
-  };
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(roomCode).then(doCopy).catch(() => fallbackCopy(roomCode, doCopy));
-  } else { fallbackCopy(roomCode, doCopy); }
-}
-function fallbackCopy(text, cb) {
-  const ta = document.createElement('textarea');
-  ta.value = text; ta.style.cssText = 'position:fixed;opacity:0';
-  document.body.appendChild(ta); ta.focus(); ta.select();
-  try { document.execCommand('copy'); cb(); } catch(e){}
-  document.body.removeChild(ta);
-}
-
-// ═══════════════════════════════════════
-//  JOIN / GUEST
-// ═══════════════════════════════════════
+// Guest Logic
 function doJoin() {
-  const code = document.getElementById('join-code').value.trim().toUpperCase();
-  if (code.length < 6) { setStatus('join-status','Enter a 6-character code','err'); return; }
-  setStatus('join-status','Connecting…','warn');
-  reconnectAttempts = 0;
-  connectToHost(code);
-}
-
-function connectToHost(code) {
-  if (peer) { try { peer.destroy(); } catch(e){} }
-  const config = getPeerConfig();
-  peer = new Peer(config);
-
+  const code = document.getElementById('join-code').value.toUpperCase();
+  peer = new Peer();
+  
   peer.on('open', () => {
-    hostConn = peer.connect('RS4-' + code, { reliable: true });
-    hostConn.on('open', async () => {
-      reconnectAttempts = 0;
-      clearTimeout(reconnectTimer);
-      
-      // Authentication
-      const savedToken = localStorage.getItem('rs_token_' + code);
-      const myId = localStorage.getItem('rs_myid') || ('g' + Math.random().toString(36).substr(2, 5));
-      localStorage.setItem('rs_myid', myId);
-      
-      hostConn.send({ t: 'auth', token: savedToken, id: myId });
-
-      hostConn.on('data', msg => {
-        if (msg.t === 'auth_success') {
-          localStorage.setItem('rs_token_' + code, msg.token);
-          document.getElementById('g-code-pill').textContent = code;
-          document.getElementById('g-reconnect-banner').classList.remove('show');
-          showScreen('s-guest');
-          setStatus('g-status','● Live from room ' + code,'ok');
-        }
-        if (msg.t === 'auth_fail') {
-          setStatus('join-status', 'Authentication failed: ' + msg.reason, 'err');
-          localStorage.removeItem('rs_token_' + code);
-          hostConn.close();
-        }
-        if (msg.t === 'kick') {
-          setStatus('g-status', 'Kicked: ' + msg.reason, 'err');
-          setTimeout(() => showScreen('s-land'), 2000);
-        }
-        if (msg.t === 'track') renderGuestPlayer(msg.d);
-        if (msg.t === 'prog')  updateGuestProg(msg.p, msg.dur, msg.playing);
-        if (msg.t === 'roster') updateGuestRoster(msg.guests, msg.myId);
-      });
+    conn = peer.connect('RS-' + code);
+    conn.on('open', () => {
+      roomCode = code;
+      document.getElementById('room-code-display').textContent = code;
+      showScreen('s-player');
     });
-    hostConn.on('close', () => { setStatus('g-status','Host disconnected','err'); scheduleReconnect(code); });
-    hostConn.on('error', () => { setStatus('g-status','Connection error','err'); scheduleReconnect(code); });
-  });
 
-  peer.on('call', call => {
-    call.answer();
-    call.on('stream', stream => {
-      audioG.srcObject = null;
-      setTimeout(() => { audioG.srcObject = stream; audioG.play().catch(()=>{}); }, 80);
+    conn.on('data', data => {
+      if (data.t === 'init') {
+        currentMode = data.mode;
+        if (data.mode === 'online') {
+          document.getElementById('yt-player-container').classList.add('active');
+          document.getElementById('local-art').style.display = 'none';
+          ytPlayer.loadVideoById(data.v);
+        } else {
+          document.getElementById('yt-player-container').classList.remove('active');
+          document.getElementById('local-art').style.display = 'block';
+          document.getElementById('track-name').textContent = data.name;
+          const url = URL.createObjectURL(new Blob([data.file]));
+          audioEl.src = url;
+        }
+      } else if (data.t === 'sync') {
+        syncPlayback(data);
+      }
     });
   });
-
-  peer.on('error', err => {
-    if (err.type === 'peer-unavailable') setStatus('join-status','Room not found — check the code','err');
-    else scheduleReconnect(code);
-  });
 }
 
-function scheduleReconnect(code) {
-  if (reconnectAttempts >= MAX_RECONNECT) {
-    const b = document.getElementById('g-reconnect-banner');
-    b.textContent = '✕ Could not reconnect. Refresh to try again.';
-    b.className = 'reconnect-banner show';
-    return;
+// Sync Utilities
+function broadcast(msg) {
+  connections.forEach(c => c.send(msg));
+}
+
+function startSyncLoop() {
+  syncInterval = setInterval(() => {
+    let time = 0, duration = 0, playing = false;
+    if (currentMode === 'online') {
+      time = ytPlayer.getCurrentTime();
+      duration = ytPlayer.getDuration();
+      playing = ytPlayer.getPlayerState() === YT.PlayerState.PLAYING;
+    } else {
+      time = audioEl.currentTime;
+      duration = audioEl.duration;
+      playing = !audioEl.paused;
+    }
+
+    updateUI(time, duration, playing);
+    broadcast({ t: 'sync', time, playing });
+  }, 1000);
+}
+
+function syncPlayback(data) {
+  if (currentMode === 'online') {
+    const diff = Math.abs(ytPlayer.getCurrentTime() - data.time);
+    if (diff > 2) ytPlayer.seekTo(data.time);
+    if (data.playing) ytPlayer.playVideo(); else ytPlayer.pauseVideo();
+  } else {
+    const diff = Math.abs(audioEl.currentTime - data.time);
+    if (diff > 2) audioEl.currentTime = data.time;
+    if (data.playing) audioEl.play(); else audioEl.pause();
   }
-  reconnectAttempts++;
-  const delay = Math.min(1500 * reconnectAttempts, 8000);
-  const b = document.getElementById('g-reconnect-banner');
-  b.textContent = `↻ Reconnecting… (attempt ${reconnectAttempts}/${MAX_RECONNECT})`;
-  b.className = 'reconnect-banner show warn';
-  reconnectTimer = setTimeout(() => connectToHost(code), delay);
 }
 
-function updateGuestRoster(guests, myId) {
-  myGuestId = myId || myGuestId;
-  guestRoster = guests;
-  const list = document.getElementById('g-guest-list');
-  const meTag = `<div class="guest-tag me"><div class="dot-live"></div>YOU</div>`;
-  const others = guests.filter(g => g.id !== myGuestId)
-    .map(g => `<div class="guest-tag"><div class="dot-live"></div>${g.tag}</div>`).join('');
-  list.innerHTML = meTag + others;
-}
-
-function renderGuestPlayer(t) {
-  document.getElementById('g-title').textContent = t.title;
-  document.getElementById('g-artist').textContent = t.artist;
-  if (t.art) {
-    const img = document.getElementById('g-art');
-    img.src = t.art; img.style.display = 'block';
-    document.getElementById('g-art-empty').style.display = 'none';
-    document.getElementById('dyn-bg').style.backgroundImage = `url(${t.art})`;
+function togglePlay() {
+  if (currentMode === 'online') {
+    if (ytPlayer.getPlayerState() === YT.PlayerState.PLAYING) ytPlayer.pauseVideo();
+    else ytPlayer.playVideo();
+  } else {
+    if (audioEl.paused) audioEl.play();
+    else audioEl.pause();
   }
-  updateGuestProg(t.progress, t.duration, t.playing);
 }
 
-function updateGuestProg(p, dur, playing) {
-  const pct = dur > 0 ? (p / dur) * 100 : 0;
-  document.getElementById('g-prog-fill').style.width = pct + '%';
-  document.getElementById('g-curr').textContent = fmt(p / 1000);
-  document.getElementById('g-dur').textContent = fmt(dur / 1000);
-  document.getElementById('g-play-svg').innerHTML = playing
-    ? '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>'
-    : '<path d="M8 5v14l11-7z"/>';
+function updateUI(time, duration, playing) {
+  const pct = (time / duration) * 100;
+  document.getElementById('prog-fill').style.width = pct + '%';
+  document.getElementById('curr-time').textContent = formatTime(time);
+  document.getElementById('total-time').textContent = formatTime(duration);
+  document.getElementById('play-icon').textContent = playing ? '⏸' : '▶';
 }
 
-function setStatus(id, msg, cls='') {
-  const e = document.getElementById(id);
-  if (!e) return;
-  e.textContent = msg;
-  e.className = 'status-line ' + cls;
+function formatTime(s) {
+  if (!s || isNaN(s)) return "0:00";
+  const min = Math.floor(s / 60);
+  const sec = Math.floor(s % 60);
+  return `${min}:${sec.toString().padStart(2, '0')}`;
+}
+
+function extractVideoId(url) {
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+  const match = url.match(regExp);
+  return (match && match[2].length === 11) ? match[2] : null;
 }
 </script>
 </body>
