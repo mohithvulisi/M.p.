@@ -1,8 +1,26 @@
 {
   "name": "roomsync",
   "version": "1.0.0",
-  "description": "Synchronized audio playback application",
+  "description": "High-precision synchronized audio playback for YouTube, Spotify, and local files.",
   "main": "server.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mohithvulisi/M.p..git"
+  },
+  "keywords": [
+    "webrtc",
+    "synchronization",
+    "audio-streaming",
+    "peerjs",
+    "youtube-sync",
+    "spotify-metadata"
+  ],
+  "author": "Mohith Vulisi",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/mohithvulisi/M.p./issues"
+  },
+  "homepage": "https://github.com/mohithvulisi/M.p.#readme",
   "scripts": {
     "start": "node server.js",
     "dev": "browser-sync start --server --files \"*.html\""

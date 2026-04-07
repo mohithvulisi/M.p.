@@ -4,6 +4,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .npm
+package-lock.json
 
 # Android
 android/app/build/
@@ -15,6 +16,8 @@ android/.externalNativeBuild
 android/.cxx/
 android/app/src/main/assets/public/
 android/app/src/main/assets/capacitor.plugins.json
+*.keystore
+!debug.keystore
 
 # Capacitor
 www/
@@ -27,11 +30,15 @@ capacitor-cordova-android-plugins/
 *.iml
 *.swp
 *.log
+Thumbs.db
+Desktop.ini
 
-# Large Binaries / SDKs (Added to fix push error)
+# Large Binaries / SDKs
 jdk*/
 *.zip
 *.msi
 node-v*/
 android-sdk/
 android-sdk-tmp/
+android-sdk-temp/
+node_modules/

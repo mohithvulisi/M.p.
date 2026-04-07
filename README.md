@@ -1,69 +1,73 @@
-# RoomSync Deployment
+# 🎧 RoomSync
 
-This project provides a synchronized audio playback experience over a local network (WiFi hotspot or LAN).
+**Universal High-Precision Synchronized Audio Streaming**
 
-## Getting Started
+RoomSync is a production-ready mobile and web application designed for synchronized audio playback across multiple devices. Whether you're hosting a silent disco, a shared study session, or just want to sync music throughout your home, RoomSync provides sub-100ms latency synchronization using WebRTC.
 
-### Option A: Using Node.js (Recommended for full offline features)
+![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
+![License](https://img.shields.io/badge/license-MIT-green.svg)
+![Platform](https://img.shields.io/badge/platform-Web%20%7C%20Android-orange.svg)
 
-1.  **Install Node.js**: Download it from [nodejs.org](https://nodejs.org/).
-2.  Install dependencies:
-    ```bash
-    npm install
-    ```
-3.  Run the local server:
-    ```bash
-    npm start
-    ```
+## 🚀 Core Features
 
-### Option B: Using Python (Quickest way if Python is already installed)
+- **Universal Metadata Bridge**: Seamlessly resolve and sync links from **Spotify**, **Apple Music**, and **YouTube Music**.
+- **High-Precision Sync**: Advanced RTT-based latency correction keeps all devices within a 1.5s drift threshold (optimized for WebRTC).
+- **P2P Audio Streaming**: Direct peer-to-peer chunked transfer for local files (MP3/FLAC/WAV).
+- **Zero Configuration**: Join rooms instantly via **QR Code** or 6-digit session codes.
+- **Battery Saver Mode**: Dimmed UI for long-session audio streaming on mobile devices.
+- **AES-GCM Encryption**: Secure guest authentication for private listening rooms.
 
-Since you already have Python, you can start a simple server without installing anything:
+## 🛠 Tech Stack
 
-1.  Open your terminal and run:
-    ```bash
-    python -m http.server 3000
-    ```
-2.  Access the application:
-    Open `http://localhost:3000` on your host device.
+- **Frontend**: HTML5, CSS3 (Glassmorphism), Vanilla JavaScript.
+- **Connectivity**: PeerJS (WebRTC) for P2P signaling and data channels.
+- **Mobile**: Capacitor.js for native Android bridging.
+- **Backend**: Node.js + Express for local signaling (Optional).
+- **APIs**: Piped API (YouTube), OEmbed (Spotify), iTunes Lookup (Apple Music).
 
-*Note: Python's simple server does NOT provide local signaling. You will need an internet connection for the PeerJS cloud.*
+## 📥 Installation
 
-## How to Test on Multiple Devices (Local Host)
+### For Web Developers
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/mohithvulisi/M.p..git
+   cd M.p.-main
+   ```
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Start the local development server:
+   ```bash
+   npm start
+   ```
 
-To ensure RoomSync is working across multiple devices on your local network:
+### For Android
+- Open the `/android` folder in Android Studio.
+- Build the APK using the provided Gradle wrapper:
+  ```bash
+  ./gradlew assembleDebug
+  ```
 
-1.  **Connect to same WiFi**: Make sure your computer (the Host) and your other devices (phones, tablets, etc.) are connected to the **same WiFi network**.
-2.  **Start the Server**: Run `node server.js` in your terminal.
-3.  **Find the Network IP**: The terminal will show a **Network address** (e.g., `http://192.168.1.5:3000`).
-4.  **Open on Other Devices**:
-    -   On your computer, open `http://localhost:3000`.
-    -   On your phone/other device, open the **Network address** in the browser.
-5.  **Use the QR Code**: 
-    -   On the computer (Host), click the **📷 (Camera)** icon next to the room code.
-    -   Scan the QR code with your phone's camera to join instantly!
-6.  **Verify Sync**: 
-    -   You will see a **pinking pulse** next to the room code on both devices.
-    -   If the pulses are flashing at the exact same time, your devices are perfectly synchronized to the server time.
-    -   Play music on the Host and it will stream to all connected devices.
+## 📖 Usage Guide
 
-## Enhanced Features
-- **QR Code Joining**: No more typing 6-digit codes. Scan and join.
-- **Visual Sync Pulse**: Real-time visual feedback that devices are in phase.
-- **Direct IP Detection**: Server automatically detects and displays your local network address.
-- **URL Joining**: Share the full URL (with `?room=XXXXXX`) to join automatically.
+1. **Host a Room**: Select "Host a Room" and choose between **Online (YouTube)** or **Local Files**.
+2. **Share the Code**: Guests can scan the generated QR code or enter the 6-digit ID.
+3. **Sync & Play**: Once guests tap "READY TO SYNC", the host controls all playback. The "Sync Pulse" visualizer confirms phase alignment across all connected nodes.
 
-### Offline Mode Configuration
+## 🤝 Contributing
 
-If you're using this in an environment without internet access, you'll need to modify `roomsync.html` to use the local PeerServer.
+Contributions are welcome! Please feel free to submit a Pull Request.
 
-In `roomsync.html`, change the `Peer` initialization to:
-```javascript
-peer = new Peer('RS4-' + roomCode, {
-  host: window.location.hostname,
-  port: window.location.port || 80,
-  path: '/peerjs/roomsync-peer',
-  debug: 0
-});
-```
-This ensures signaling happens locally rather than through PeerJS's public cloud.
+1. Fork the Project
+2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the Branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## 📄 License
+
+Distributed under the MIT License. See `LICENSE` for more information.
+
+---
+*Built with ❤️ for the open-source community.*

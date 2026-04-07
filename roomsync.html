@@ -212,6 +212,12 @@ body.light #dyn-vignette { background: radial-gradient(ellipse at center, transp
 <div id="dyn-bg"></div>
 <div id="dyn-vignette"></div>
 <div id="dim-overlay"></div>
+<div id="unlock-overlay" style="position:fixed; inset:0; z-index:9000; background:rgba(0,0,0,0.95); display:none; flex-direction:column; align-items:center; justify-content:center; text-align:center;">
+    <div style="font-size:60px; margin-bottom:20px;">🔊</div>
+    <h2 style="margin-bottom:15px">Syncing Audio...</h2>
+    <p style="color:var(--muted); margin-bottom:40px; padding:0 30px">One tap to start the synchronized stream.</p>
+    <button class="btn-fill amber" style="width:220px" onclick="unlockAudio()">READY TO SYNC</button>
+</div>
 <div id="log-console"></div>
 
 <button class="theme-toggle" onclick="toggleTheme()">🌙</button>
@@ -427,7 +433,7 @@ function toggleDim() {
 }
 
 // ── YOUTUBE API ──
-function onYouTubeIframeAPIReady() {
+async function onYouTubeIframeAPIReady() {
   ytPlayer = new YT.Player('yt-player', {
     height: '100%', width: '100%',
     playerVars: { 'autoplay': 1, 'controls': 0, 'disablekb': 1, 'rel': 0, 'playsinline': 1 },
@@ -444,17 +450,77 @@ function onPlayerStateChange(event) {
   if (isHost) broadcast({ t: 'state', s: event.data, time: ytPlayer.getCurrentTime() });
 }
 
+async function searchYouTube(q) {
+    try {
+        const resp = await fetch(`https://pipedapi.kavin.rocks/search?q=${encodeURIComponent(q)}&filter=videos`);
+        const data = await resp.json();
+        return data.map(v => ({
+            id: v.url.split('v=')[1],
+            title: v.title,
+            thumb: v.thumbnail,
+            uploader: v.uploaderName
+        })).slice(0, 5);
+    } catch (e) {
+        log("Search Error: " + e);
+        return [];
+    }
+}
+
 async function doSearch(query) {
     const resDiv = document.getElementById('search-results');
     if (query.length < 3) { resDiv.style.display = 'none'; return; }
-    const videoId = extractVideoId(query);
-    if (videoId) {
-        resDiv.style.display = 'block';
-        resDiv.innerHTML = `<div class="search-item" onclick="addToQueue('${videoId}', 'YouTube Video')">
-            <img class="search-thumb" src="https://img.youtube.com/vi/${videoId}/mqdefault.jpg">
-            <div class="search-info"><div class="search-title">Add to Queue</div></div>
-        </div>`;
+
+    const ytId = extractVideoId(query);
+    if (ytId) {
+        showSearchResults([{ id: ytId, title: 'YouTube Video', thumb: `https://img.youtube.com/vi/${ytId}/mqdefault.jpg` }]);
+        return;
     }
+
+    if (query.includes('spotify.com')) {
+        resDiv.innerHTML = '<div style="padding:10px; font-size:12px">🔍 Resolving Spotify track...</div>';
+        resDiv.style.display = 'block';
+        try {
+            const resp = await fetch(`https://open.spotify.com/oembed?url=${encodeURIComponent(query)}`);
+            const data = await resp.json();
+            const results = await searchYouTube(`${data.title} ${data.author_name}`);
+            showSearchResults(results);
+        } catch (e) { log("Spotify Resolve Error"); }
+        return;
+    }
+
+    if (query.includes('music.apple.com')) {
+        resDiv.innerHTML = '<div style="padding:10px; font-size:12px">🔍 Resolving Apple Music track...</div>';
+        resDiv.style.display = 'block';
+        try {
+            const trackId = query.split('i=')[1] || query.split('/').pop().split('?')[0];
+            const resp = await fetch(`https://itunes.apple.com/lookup?id=${trackId}&entity=song`);
+            const data = await resp.json();
+            if (data.results && data.results[0]) {
+                const item = data.results[0];
+                const results = await searchYouTube(`${item.trackName} ${item.artistName}`);
+                showSearchResults(results);
+            }
+        } catch (e) { log("Apple Music Resolve Error"); }
+        return;
+    }
+
+    const results = await searchYouTube(query);
+    showSearchResults(results);
+}
+
+function showSearchResults(results) {
+    const resDiv = document.getElementById('search-results');
+    if (!results || results.length === 0) { resDiv.style.display = 'none'; return; }
+    resDiv.style.display = 'block';
+    resDiv.innerHTML = results.map(r => `
+        <div class="search-item" onclick="addToQueue('${r.id}', '${r.title.replace(/'/g, "\\'")}')">
+            <img class="search-thumb" src="${r.thumb}">
+            <div class="search-info">
+                <div class="search-title">${r.title}</div>
+                <div style="font-size:10px; color:var(--muted)">${r.uploader || 'YouTube'}</div>
+            </div>
+        </div>
+    `).join('');
 }
 
 function addToQueue(id, title, isLocal = false, file = null) {
@@ -468,12 +534,14 @@ function addToQueue(id, title, isLocal = false, file = null) {
 
 function updateQueueUI() {
     const list = document.getElementById('queue-list');
-    list.innerHTML = queue.slice(currentTrackIndex + 1).map(item => `
+    const remaining = queue.slice(currentTrackIndex + 1);
+    list.innerHTML = remaining.map((item, i) => `
         <div class="queue-item">
             <span>${item.isLocal ? '🎵' : '📺'}</span>
             <span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">${item.title}</span>
+            ${isHost ? `<span style="color:var(--red); cursor:pointer; padding: 0 5px;" onclick="removeTrack(${i + currentTrackIndex + 1})">×</span>` : ''}
         </div>
-    `).join('') || '<div style="font-size:11px; color:var(--muted)">Queue is empty</div>';
+    `).join('') || '<div style="font-size:11px; color:var(--muted); text-align:center; padding:10px;">Queue is empty</div>';
 }
 
 // ── CORE LOGIC ──
@@ -576,7 +644,7 @@ function startSyncLoop() {
     }
     updateUI(time, duration, playing);
     broadcast({ t: 'sync', time, playing, hostNow: Date.now() });
-  }, 2000);
+  }, 1000); // Tightened to 1s for better precision
 }
 
 let incomingFile = { chunks: [], total: 0, meta: null };
@@ -593,7 +661,9 @@ async function handleData(data, c) {
         }
     } else if (data.t === 'init') {
         queue = data.queue; currentTrackIndex = data.index; updateQueueUI();
-        if (data.current && data.current.mode === 'online') applyTrack(data.current);
+        if (data.current) applyTrack(data.current);
+    } else if (data.t === 'queue-update') {
+        queue = data.queue; updateQueueUI();
     } else if (data.t === 'file-start') {
         incomingFile = { chunks: [], total: data.total, meta: data };
     } else if (data.t === 'file-chunk') {
@@ -607,9 +677,6 @@ async function handleData(data, c) {
     } else if (data.t === 'load') {
         if (data.mode === 'online') applyTrack(data);
     } else if (data.t === 'sync') {
-        const roundTrip = Date.now() - data.hostNow;
-        const offset = data.time - (Date.now() - roundTrip / 2) / 1000;
-        serverTimeOffset = (serverTimeOffset * 0.9) + (offset * 0.1);
         syncPlayback(data);
     } else if (data.t === 'queue-add') {
         queue.push(data.item); updateQueueUI();
@@ -619,7 +686,9 @@ async function handleData(data, c) {
 async function initPeer() {
   if (peer) peer.destroy();
   roomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-  peer = new Peer('RS-' + roomCode);
+  peer = new Peer('RS-' + roomCode, {
+      config: { 'iceServers': [{ 'urls': 'stun:stun.l.google.com:19302' }, { 'urls': 'stun:stun1.l.google.com:19302' }] }
+  });
   return new Promise(resolve => {
     peer.on('open', (id) => {
         log("Room Open: " + roomCode); document.getElementById('room-code-display').textContent = roomCode; resolve();
@@ -640,10 +709,20 @@ async function initPeer() {
   });
 }
 
+function unlockAudio() {
+    audioEl.play().catch(()=>{}); audioEl.pause();
+    document.getElementById('unlock-overlay').style.display = 'none';
+    requestWakeLock();
+}
+
 function doJoin() {
   const code = document.getElementById('join-code').value.toUpperCase();
-  if (!code) return; if (peer) peer.destroy();
-  peer = new Peer();
+  if (!code) return;
+  document.getElementById('unlock-overlay').style.display = 'flex';
+  if (peer) peer.destroy();
+  peer = new Peer({
+      config: { 'iceServers': [{ 'urls': 'stun:stun.l.google.com:19302' }, { 'urls': 'stun:stun1.l.google.com:19302' }] }
+  });
   peer.on('open', () => {
     log("Joining " + code);
     conn = peer.connect('RS-' + code, { reliable: true });
@@ -677,13 +756,16 @@ function applyTrack(data) {
 
 function syncPlayback(data) {
   let time = 0;
+  const lat = (Date.now() - data.hostNow) / 1000;
+  const targetTime = data.time + lat;
+
   if (currentMode === 'online' && ytPlayer && ytPlayer.getCurrentTime) {
     time = ytPlayer.getCurrentTime();
-    if (Math.abs(time - data.time) > 2.5) ytPlayer.seekTo(data.time);
+    if (Math.abs(time - targetTime) > 1.5) ytPlayer.seekTo(targetTime);
     if (data.playing) ytPlayer.playVideo(); else ytPlayer.pauseVideo();
   } else if (currentMode === 'local') {
     time = audioEl.currentTime;
-    if (Math.abs(time - data.time) > 2.5) audioEl.currentTime = data.time;
+    if (Math.abs(time - targetTime) > 1.5) audioEl.currentTime = targetTime;
     if (data.playing) audioEl.play().catch(()=>{}); else audioEl.pause();
   }
   updateUI(data.time, currentMode==='online'?ytPlayer.getDuration():audioEl.duration, data.playing);
@@ -719,8 +801,17 @@ function formatTime(s) {
 }
 
 function extractVideoId(url) {
-  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-  const match = url.match(regExp); return (match && match[2].length === 11) ? match[2] : null;
+  // Enhanced regex to catch music.youtube.com and various shortlinks
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=|music\.youtube\.com\/watch\?v=)([^#\&\?]*).*/;
+  const match = url.match(regExp);
+  return (match && match[2].length === 11) ? match[2] : null;
+}
+
+function removeTrack(idx) {
+    if (!isHost) return;
+    queue.splice(idx, 1);
+    broadcast({ t: 'queue-update', queue: queue.map(i => ({title: i.title, isLocal: i.isLocal})) });
+    updateQueueUI();
 }
 
 function showQR() {
